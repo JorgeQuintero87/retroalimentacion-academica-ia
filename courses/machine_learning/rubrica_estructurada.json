@@ -1,0 +1,131 @@
+{
+  "nombre_curso": "Machine Learning",
+  "puntaje_total": 150,
+  "criterios_evaluacion": [
+    {
+      "numero": 1,
+      "nombre": "Carga, contextualiza y analiza datasets según ítem elegido",
+      "puntaje_maximo": 30,
+      "niveles": [
+        {
+          "nivel": "alto",
+          "puntaje_minimo": 26,
+          "puntaje_maximo": 30,
+          "descripcion": "El estudiante carga correctamente los datasets elegidos en el foro, proporciona información contextual relevante y realiza tanto la limpieza como el análisis de manera adecuada y completa."
+        },
+        {
+          "nivel": "medio",
+          "puntaje_minimo": 21,
+          "puntaje_maximo": 25,
+          "descripcion": "El estudiante carga los datasets, pero la contextualización es limitada o incompleta, y presenta algunos errores u omisiones en la limpieza o el análisis."
+        },
+        {
+          "nivel": "bajo",
+          "puntaje_minimo": 1,
+          "puntaje_maximo": 20,
+          "descripcion": "El estudiante no carga correctamente los datasets, no contextualiza su contenido y la limpieza o el análisis están ausentes o presentan errores importantes."
+        }
+      ]
+    },
+    {
+      "numero": 2,
+      "nombre": "Aplica modelos de regresión junto con las respectivas métricas y explicación de resultados",
+      "puntaje_maximo": 50,
+      "niveles": [
+        {
+          "nivel": "alto",
+          "puntaje_minimo": 43,
+          "puntaje_maximo": 50,
+          "descripcion": "El estudiante aplica correctamente los modelos de regresión solicitados, interpreta las métricas de evaluación (como MAE, MSE, RMSE y R²) y explica de forma clara y fundamentada los resultados obtenidos."
+        },
+        {
+          "nivel": "medio",
+          "puntaje_minimo": 35,
+          "puntaje_maximo": 42,
+          "descripcion": "El estudiante aplica modelos de regresión, pero comete errores menores en su implementación o elección. Interpreta parcialmente las métricas y ofrece explicaciones generales o poco profundas de los resultados."
+        },
+        {
+          "nivel": "bajo",
+          "puntaje_minimo": 1,
+          "puntaje_maximo": 34,
+          "descripcion": "El estudiante no aplica correctamente modelos de regresión o no utiliza métricas apropiadas. La interpretación de resultados es incorrecta, superficial o inexistente."
+        }
+      ]
+    },
+    {
+      "numero": 3,
+      "nombre": "Aplica modelos de clasificación junto con las respectivas métricas y explicación de resultados",
+      "puntaje_maximo": 50,
+      "niveles": [
+        {
+          "nivel": "alto",
+          "puntaje_minimo": 43,
+          "puntaje_maximo": 50,
+          "descripcion": "El estudiante aplica correctamente los modelos de clasificación solicitados, calcula las métricas apropiadamente (accuracy, precisión, recall, F1-score, matriz de confusión) y explica de forma clara y fundamentada los resultados."
+        },
+        {
+          "nivel": "medio",
+          "puntaje_minimo": 35,
+          "puntaje_maximo": 42,
+          "descripcion": "El estudiante aplica modelos de clasificación, pero presenta errores menores en la implementación o en la elección de métricas. La interpretación de los resultados es superficial o poco argumentada."
+        },
+        {
+          "nivel": "bajo",
+          "puntaje_minimo": 1,
+          "puntaje_maximo": 34,
+          "descripcion": "El estudiante aplica modelos inadecuados o comete errores significativos en su uso. Las métricas están mal aplicadas o no se interpretan adecuadamente."
+        }
+      ]
+    },
+    {
+      "numero": 4,
+      "nombre": "Participación en foro y retroalimentación a compañero de grupo",
+      "puntaje_maximo": 10,
+      "niveles": [
+        {
+          "nivel": "alto",
+          "puntaje_minimo": 9,
+          "puntaje_maximo": 10,
+          "descripcion": "El estudiante participa activamente en el foro, presenta aportes relevantes y bien argumentados, y realiza retroalimentación constructiva y respetuosa al trabajo de un compañero, demostrando análisis y comprensión del tema."
+        },
+        {
+          "nivel": "medio",
+          "puntaje_minimo": 7,
+          "puntaje_maximo": 8,
+          "descripcion": "El estudiante participa en el foro, pero sus aportes son breves, poco argumentados o generales. La retroalimentación a su compañero es limitada o poco detallada."
+        },
+        {
+          "nivel": "bajo",
+          "puntaje_minimo": 1,
+          "puntaje_maximo": 6,
+          "descripcion": "El estudiante participa mínimamente en el foro, sin aportar ideas relevantes."
+        }
+      ]
+    },
+    {
+      "numero": 5,
+      "nombre": "Entrega documento según indicaciones en la Guía",
+      "puntaje_maximo": 10,
+      "niveles": [
+        {
+          "nivel": "alto",
+          "puntaje_minimo": 9,
+          "puntaje_maximo": 10,
+          "descripcion": "El estudiante entrega el documento completo dentro del plazo establecido, cumpliendo con todos los requerimientos de forma, estructura y formato indicados en la guía."
+        },
+        {
+          "nivel": "medio",
+          "puntaje_minimo": 7,
+          "puntaje_maximo": 8,
+          "descripcion": "El documento es entregado dentro del plazo, pero presenta algunos errores o faltantes respecto a la estructura o formato solicitado en la guía."
+        },
+        {
+          "nivel": "bajo",
+          "puntaje_minimo": 1,
+          "puntaje_maximo": 6,
+          "descripcion": "El documento se entrega con incumplimiento notable de las indicaciones de forma y estructura, o con un formato inadecuado que dificulta su revisión."
+        }
+      ]
+    }
+  ]
+}

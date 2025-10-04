@@ -1,0 +1,29 @@
+# Variables de entorno
+.env
+
+# Archivos temporales
+uploads/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Archivos de prueba
+test_*.pdf
+test_*.png
+test_*.jpg
+nul

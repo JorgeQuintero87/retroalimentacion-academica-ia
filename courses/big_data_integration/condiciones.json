@@ -1,0 +1,67 @@
+{
+  "nombre_curso": "Big Data Integration",
+  "descripcion": "Curso avanzado sobre integración de grandes volúmenes de datos",
+  "condiciones_entrega": [
+    {
+      "seccion": "Introducción",
+      "peso": 10,
+      "criterios": [
+        "Presenta claramente el problema de integración de datos",
+        "Justifica la necesidad del proyecto con datos reales",
+        "Define objetivos específicos y medibles"
+      ]
+    },
+    {
+      "seccion": "Arquitectura de Datos",
+      "peso": 25,
+      "criterios": [
+        "Diagrama de arquitectura completo y legible",
+        "Explica la selección de tecnologías (Hadoop, Spark, Kafka, etc.)",
+        "Define flujo de datos desde origen hasta destino",
+        "Incluye estrategias de escalabilidad"
+      ]
+    },
+    {
+      "seccion": "Implementación",
+      "peso": 35,
+      "criterios": [
+        "Código documentado y con buenas prácticas",
+        "Uso correcto de herramientas Big Data (PySpark, Pandas, SQL)",
+        "Pipeline de ETL funcional y optimizado",
+        "Manejo de errores y validación de datos",
+        "Código ejecutable con notebooks .ipynb o scripts Python"
+      ]
+    },
+    {
+      "seccion": "Calidad de Datos",
+      "peso": 15,
+      "criterios": [
+        "Implementa validación de datos (integridad, consistencia)",
+        "Maneja datos faltantes o duplicados",
+        "Monitoreo de calidad de datos",
+        "Documentación de transformaciones aplicadas"
+      ]
+    },
+    {
+      "seccion": "Resultados y Análisis",
+      "peso": 10,
+      "criterios": [
+        "Métricas de rendimiento (tiempo de procesamiento, throughput)",
+        "Visualizaciones claras de los datos integrados",
+        "Análisis de limitaciones y mejoras futuras"
+      ]
+    },
+    {
+      "seccion": "Documentación",
+      "peso": 5,
+      "criterios": [
+        "README completo con instrucciones de ejecución",
+        "Comentarios claros en el código",
+        "Referencias bibliográficas citadas correctamente"
+      ]
+    }
+  ],
+  "formato_aceptado": ["pdf", "ipynb", "png", "jpg"],
+  "fecha_limite": "2025-12-31",
+  "penalizacion_retraso": 0.1
+}

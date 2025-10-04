@@ -1,0 +1,131 @@
+{
+  "nombre_curso": "Big Data Integration",
+  "puntaje_total": 175,
+  "criterios_evaluacion": [
+    {
+      "numero": 1,
+      "nombre": "The student distinguishes the main concepts of Business Analytics and Data and Statistical Methods",
+      "puntaje_maximo": 35,
+      "niveles": [
+        {
+          "nivel": "high",
+          "puntaje_minimo": 20,
+          "puntaje_maximo": 35,
+          "descripcion": "The student presented clearly the topic chosen in a conceptual map made with a digital tool."
+        },
+        {
+          "nivel": "average",
+          "puntaje_minimo": 10,
+          "puntaje_maximo": 19,
+          "descripcion": "The student presented in an acceptable way the topic synthesized in a conceptual map, however, the digital tool management is regular."
+        },
+        {
+          "nivel": "low",
+          "puntaje_minimo": 1,
+          "puntaje_maximo": 9,
+          "descripcion": "The student doesn't synthesize the topics in a conceptual map."
+        }
+      ]
+    },
+    {
+      "numero": 2,
+      "nombre": "Description of Data domain",
+      "puntaje_maximo": 35,
+      "niveles": [
+        {
+          "nivel": "high",
+          "puntaje_minimo": 20,
+          "puntaje_maximo": 35,
+          "descripcion": "The student clearly presented the chosen topic in the presentation prepared with a digital tool."
+        },
+        {
+          "nivel": "average",
+          "puntaje_minimo": 10,
+          "puntaje_maximo": 19,
+          "descripcion": "The student presented a discussion on the description of the data domain, however, some ideas lack clear arguments."
+        },
+        {
+          "nivel": "low",
+          "puntaje_minimo": 1,
+          "puntaje_maximo": 9,
+          "descripcion": "The student does not present description of the data domain."
+        }
+      ]
+    },
+    {
+      "numero": 3,
+      "nombre": "Description of Data training, validation and test",
+      "puntaje_maximo": 35,
+      "niveles": [
+        {
+          "nivel": "high",
+          "puntaje_minimo": 20,
+          "puntaje_maximo": 35,
+          "descripcion": "The student presented the Description of Data training, validation and test."
+        },
+        {
+          "nivel": "average",
+          "puntaje_minimo": 10,
+          "puntaje_maximo": 19,
+          "descripcion": "The student presented the description of the training, validation and testing of data, however, some comparisons lack clear arguments."
+        },
+        {
+          "nivel": "low",
+          "puntaje_minimo": 1,
+          "puntaje_maximo": 9,
+          "descripcion": "The student does not present the description of the training validation and data test."
+        }
+      ]
+    },
+    {
+      "numero": 4,
+      "nombre": "The distinction of Machine Learning for computer processing",
+      "puntaje_maximo": 35,
+      "niveles": [
+        {
+          "nivel": "high",
+          "puntaje_minimo": 20,
+          "puntaje_maximo": 35,
+          "descripcion": "The student makes the distinction of Machine Learning for computer processing."
+        },
+        {
+          "nivel": "average",
+          "puntaje_minimo": 10,
+          "puntaje_maximo": 19,
+          "descripcion": "The student makes the distinction of machine learning for computer processing, however, some ideas mentioned lack clarity."
+        },
+        {
+          "nivel": "low",
+          "puntaje_minimo": 1,
+          "puntaje_maximo": 9,
+          "descripcion": "The student does not present the distinction of machine learning for computer processing."
+        }
+      ]
+    },
+    {
+      "numero": 5,
+      "nombre": "Pass and obtain accreditation Big Data 101, for the IBM certification",
+      "puntaje_maximo": 35,
+      "niveles": [
+        {
+          "nivel": "high",
+          "puntaje_minimo": 20,
+          "puntaje_maximo": 35,
+          "descripcion": "The student enrolls in the course, completes it, also attaches the certificate and badges as evidence of their learning process."
+        },
+        {
+          "nivel": "average",
+          "puntaje_minimo": 10,
+          "puntaje_maximo": 19,
+          "descripcion": "The student enrolls in the course and passes it, but does not attach the certificate and the badges, or does not obtain these certifications, as evidence of their learning process."
+        },
+        {
+          "nivel": "low",
+          "puntaje_minimo": 1,
+          "puntaje_maximo": 9,
+          "descripcion": "The student does not enroll in the course or does not complete it."
+        }
+      ]
+    }
+  ]
+}

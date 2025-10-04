@@ -1,0 +1,71 @@
+{
+  "nombre_curso": "Machine Learning",
+  "descripcion": "Curso de fundamentos y aplicaciones de Machine Learning",
+  "condiciones_entrega": [
+    {
+      "seccion": "Definición del Problema",
+      "peso": 10,
+      "criterios": [
+        "Descripción clara del problema de ML (clasificación, regresión, clustering)",
+        "Justificación de la relevancia del problema",
+        "Hipótesis planteadas correctamente"
+      ]
+    },
+    {
+      "seccion": "Exploración de Datos (EDA)",
+      "peso": 20,
+      "criterios": [
+        "Análisis estadístico descriptivo completo",
+        "Visualizaciones relevantes (distribuciones, correlaciones)",
+        "Identificación de outliers y datos faltantes",
+        "Comprensión del dataset y sus características"
+      ]
+    },
+    {
+      "seccion": "Preprocesamiento",
+      "peso": 15,
+      "criterios": [
+        "Limpieza de datos justificada",
+        "Codificación de variables categóricas",
+        "Normalización/estandarización cuando sea necesario",
+        "División correcta train/test/validation",
+        "Feature engineering documentado"
+      ]
+    },
+    {
+      "seccion": "Modelado",
+      "peso": 30,
+      "criterios": [
+        "Selección justificada de algoritmos (LinearRegression, RandomForest, XGBoost, etc.)",
+        "Implementación correcta de los modelos",
+        "Validación cruzada aplicada",
+        "Ajuste de hiperparámetros (GridSearch, RandomSearch)",
+        "Código limpio y reproducible"
+      ]
+    },
+    {
+      "seccion": "Evaluación",
+      "peso": 15,
+      "criterios": [
+        "Métricas apropiadas (Accuracy, F1, RMSE, AUC-ROC, etc.)",
+        "Matriz de confusión (si aplica)",
+        "Curvas de aprendizaje",
+        "Comparación entre modelos",
+        "Interpretación de resultados"
+      ]
+    },
+    {
+      "seccion": "Conclusiones",
+      "peso": 10,
+      "criterios": [
+        "Resumen de hallazgos principales",
+        "Limitaciones del modelo",
+        "Mejoras futuras propuestas",
+        "Aplicabilidad del modelo en producción"
+      ]
+    }
+  ],
+  "formato_aceptado": ["pdf", "ipynb", "png", "jpg"],
+  "fecha_limite": "2025-12-31",
+  "penalizacion_retraso": 0.1
+}
