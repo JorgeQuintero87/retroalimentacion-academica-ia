@@ -292,8 +292,11 @@ def main():
 
     📧 [lucho19q@gmail.com](mailto:lucho19q@gmail.com)
 
+    🤖 **Desarrollado con:**
+    - Claude AI (Anthropic)
+
     🔧 **Tecnologías:**
-    - OpenAI GPT-4o-mini
+    - GPT-4o-mini
     - Pinecone Vector DB
     - Tesseract OCR
     - Streamlit
@@ -426,7 +429,11 @@ def main():
         </p>
         <p style='margin: 5px 0 0 0; color: #666; font-size: 14px;'>
             📧 <a href='mailto:lucho19q@gmail.com' style='color: #667eea; text-decoration: none;'>lucho19q@gmail.com</a>
-            | 🚀 Powered by OpenAI GPT-4o-mini + Pinecone + Tesseract OCR
+        </p>
+        <p style='margin: 5px 0 0 0; color: #888; font-size: 13px;'>
+            🤖 Desarrollado con asistencia de <strong>Claude AI (Anthropic)</strong>
+            <br>
+            🚀 Powered by: GPT-4o-mini • Pinecone • Tesseract OCR • Streamlit
         </p>
     </div>
     """, unsafe_allow_html=True)
