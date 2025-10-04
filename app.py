@@ -257,6 +257,24 @@ def main():
 
     # Título
     st.title("📚 Sistema de Retroalimentación Académica")
+
+    # FIRMA PROFESIONAL - MUY VISIBLE
+    st.markdown("""
+    <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                padding: 20px;
+                border-radius: 10px;
+                text-align: center;
+                margin-bottom: 20px;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);'>
+        <h3 style='color: white; margin: 0; font-size: 24px;'>
+            💻 Desarrollado por: <strong>Ing. Jorge Quintero</strong>
+        </h3>
+        <p style='color: #e0e0e0; margin: 10px 0 0 0; font-size: 18px;'>
+            📧 Contacto: <a href='mailto:lucho19q@gmail.com' style='color: #ffd700; text-decoration: none; font-weight: bold;'>lucho19q@gmail.com</a>
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+
     st.markdown("---")
 
     # Inicializar sistema
@@ -265,6 +283,22 @@ def main():
 
     # Sidebar - Menú de cursos
     st.sidebar.header("⚙ Configuración")
+
+    # FIRMA EN SIDEBAR
+    st.sidebar.markdown("""
+    ---
+    ### 👨‍💻 Desarrollador
+    **Ing. Jorge Quintero**
+
+    📧 [lucho19q@gmail.com](mailto:lucho19q@gmail.com)
+
+    🔧 **Tecnologías:**
+    - OpenAI GPT-4o-mini
+    - Pinecone Vector DB
+    - Tesseract OCR
+    - Streamlit
+    ---
+    """)
 
     # Opción: Nuevo curso o curso existente
     mode = st.sidebar.radio(
@@ -378,6 +412,24 @@ def main():
         # Modo: Crear nuevo curso
         st.header("➕ Crear Nuevo Curso")
         st.info("Funcionalidad en desarrollo. Por ahora, crea manualmente el archivo `condiciones.json` en `courses/nombre_curso/`")
+
+    # FOOTER - FIRMA PROFESIONAL
+    st.markdown("---")
+    st.markdown("""
+    <div style='background-color: #f0f2f6;
+                padding: 15px;
+                border-radius: 8px;
+                text-align: center;
+                margin-top: 30px;'>
+        <p style='margin: 0; color: #555; font-size: 16px;'>
+            <strong>Sistema desarrollado por:</strong> Ing. Jorge Quintero
+        </p>
+        <p style='margin: 5px 0 0 0; color: #666; font-size: 14px;'>
+            📧 <a href='mailto:lucho19q@gmail.com' style='color: #667eea; text-decoration: none;'>lucho19q@gmail.com</a>
+            | 🚀 Powered by OpenAI GPT-4o-mini + Pinecone + Tesseract OCR
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
