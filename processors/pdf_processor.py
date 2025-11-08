@@ -28,12 +28,13 @@ class PDFProcessor:
                     pytesseract.pytesseract.tesseract_cmd = path
                     break
 
-    def extract_text_with_ocr(self, pdf_path: str) -> Dict[str, any]:
+    def extract_text_with_ocr(self, pdf_path: str, use_advanced_ocr: bool = True) -> Dict[str, any]:
         """
-        Extrae texto de PDF usando OCR (para PDFs con imágenes)
+        Extrae texto de PDF usando OCR MEJORADO (para PDFs con imágenes)
 
         Args:
             pdf_path: Ruta al archivo PDF
+            use_advanced_ocr: Si True, usa preprocesamiento avanzado (RECOMENDADO)
 
         Returns:
             Dict con texto extraído mediante OCR
@@ -54,41 +55,91 @@ class PDFProcessor:
                         print(f"  [OCR] Usando Poppler desde: {poppler_path}")
                         break
 
-            print(f"  [OCR] Convirtiendo PDF a imágenes...")
-            # Convertir PDF a imágenes
+            print(f"  [OCR] Convirtiendo PDF a imágenes con DPI alto...")
+            # Convertir PDF a imágenes con DPI más alto para mejor calidad
             if poppler_path:
-                images = convert_from_path(pdf_path, dpi=300, poppler_path=poppler_path)
+                images = convert_from_path(pdf_path, dpi=400, poppler_path=poppler_path)
             else:
-                images = convert_from_path(pdf_path, dpi=300)
+                images = convert_from_path(pdf_path, dpi=400)
 
             pages_content = []
             full_text = ""
 
-            print(f"  [OCR] Procesando {len(images)} páginas con OCR...")
+            # Importar ImageProcessor para usar OCR mejorado
+            if use_advanced_ocr:
+                from processors.image_processor import ImageProcessor
+                img_processor = ImageProcessor()
+                print(f"  [OCR] ✨ Usando OCR MEJORADO con preprocesamiento avanzado")
+
+            print(f"  [OCR] Procesando {len(images)} páginas con OCR mejorado...")
+
             for i, image in enumerate(images):
-                # Extraer texto con OCR (español e inglés)
-                page_text = pytesseract.image_to_string(image, lang='spa+eng')
+                if use_advanced_ocr:
+                    # Usar OCR mejorado con múltiples técnicas
+                    # Guardar imagen temporalmente
+                    import tempfile
+                    with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp_file:
+                        image.save(tmp_file.name, 'PNG')
+                        tmp_path = tmp_file.name
+
+                    try:
+                        # Extraer texto con OCR avanzado
+                        result = img_processor.extract_text(tmp_path, lang='spa+eng')
+                        page_text = result.get('text', '')
+                        confidence = result.get('confidence', 0)
+                        method = result.get('method', 'unknown')
+
+                        print(f"  [OCR] Página {i + 1}: {len(page_text)} caracteres "
+                              f"(confianza: {confidence:.1f}%, método: {method})")
+                    finally:
+                        # Limpiar archivo temporal
+                        try:
+                            os.unlink(tmp_path)
+                        except:
+                            pass
+                else:
+                    # OCR básico
+                    import pytesseract
+                    page_text = pytesseract.image_to_string(image, lang='spa+eng')
+                    confidence = 0
+                    print(f"  [OCR] Página {i + 1}: {len(page_text)} caracteres extraídos")
 
                 if page_text and len(page_text.strip()) > 10:
-                    pages_content.append({
+                    page_info = {
                         'page_number': i + 1,
                         'text': page_text,
                         'has_tables': False,
-                        'extracted_with': 'OCR'
-                    })
+                        'extracted_with': 'OCR_ADVANCED' if use_advanced_ocr else 'OCR_BASIC'
+                    }
+
+                    if use_advanced_ocr:
+                        page_info['confidence'] = confidence
+                        page_info['method'] = method
+
+                    pages_content.append(page_info)
                     full_text += f"\n--- Página {i + 1} (OCR) ---\n{page_text}"
-                    print(f"  [OCR] Página {i + 1}: {len(page_text)} caracteres extraídos")
+
+            avg_confidence = sum(p.get('confidence', 0) for p in pages_content) / len(pages_content) if pages_content else 0
+
+            print(f"  [OCR] ✓ Procesadas {len(pages_content)} páginas con éxito")
+            if use_advanced_ocr:
+                print(f"  [OCR] ✓ Confianza promedio: {avg_confidence:.1f}%")
 
             return {
                 'success': True,
                 'full_text': full_text,
                 'pages': pages_content,
                 'total_pages': len(images),
-                'metadata': {'extraction_method': 'OCR'}
+                'avg_confidence': avg_confidence,
+                'metadata': {
+                    'extraction_method': 'OCR_ADVANCED' if use_advanced_ocr else 'OCR_BASIC'
+                }
             }
 
         except Exception as e:
-            print(f"  [OCR] Error: {e}")
+            print(f"  [OCR] ✗ Error: {e}")
+            import traceback
+            traceback.print_exc()
             return {
                 'success': False,
                 'error': str(e),
