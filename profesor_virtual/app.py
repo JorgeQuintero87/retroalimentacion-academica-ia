@@ -9,6 +9,7 @@ from question_generator import QuestionGenerator
 from answer_evaluator import AnswerEvaluator
 from dotenv import load_dotenv
 import streamlit.components.v1 as components
+import time
 
 # Cargar variables de entorno
 load_dotenv()
@@ -40,6 +41,16 @@ st.markdown("""
         border-radius: 10px;
         border-left: 5px solid #1f77b4;
         margin: 1rem 0;
+        color: #1a1a1a;
+    }
+    .question-box h3 {
+        color: #1f77b4;
+        margin-bottom: 1rem;
+    }
+    .question-box p {
+        color: #2c2c2c;
+        font-size: 1.2rem;
+        line-height: 1.6;
     }
     .answer-box {
         background-color: #e8f4f8;
@@ -105,10 +116,12 @@ st.markdown("""
 # Función para síntesis de voz (TTS)
 def speak_text(text: str):
     """Usa Web Speech API para reproducir texto como voz"""
+    # Limpiar comillas para evitar errores en JavaScript
+    text_clean = text.replace('"', '\\"').replace("'", "\\'").replace("\n", " ")
     speech_html = f"""
     <script>
         if ('speechSynthesis' in window) {{
-            const utterance = new SpeechSynthesisUtterance("{text}");
+            const utterance = new SpeechSynthesisUtterance("{text_clean}");
             utterance.lang = 'es-ES';
             utterance.rate = 0.9;
             utterance.pitch = 1.0;
@@ -120,64 +133,116 @@ def speak_text(text: str):
     """
     components.html(speech_html, height=0)
 
-# Función para obtener reconocimiento de voz (STT)
-def get_voice_input():
-    """Componente para capturar voz del estudiante"""
+# Función para obtener reconocimiento de voz (STT) - Mejorado con más tiempo
+def get_voice_input_component():
+    """Componente para capturar voz del estudiante con más tiempo de grabación"""
     voice_html = """
     <div style="text-align: center; padding: 20px;">
         <button id="startBtn" style="padding: 15px 30px; font-size: 18px; background-color: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer;">
-            🎤 Presiona para hablar
+            🎤 Mantén presionado para hablar
         </button>
-        <p id="status" style="margin-top: 15px; font-size: 16px;"></p>
-        <p id="transcript" style="margin-top: 10px; font-size: 18px; font-weight: bold; color: #1f77b4;"></p>
+        <button id="stopBtn" style="padding: 15px 30px; font-size: 18px; background-color: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer; margin-left: 10px; display: none;">
+            ⏹️ Detener
+        </button>
+        <p id="status" style="margin-top: 15px; font-size: 16px; color: #666;"></p>
+        <div id="transcriptBox" style="margin-top: 15px; padding: 15px; background-color: #f0f2f6; border-radius: 8px; min-height: 60px; display: none;">
+            <p id="transcript" style="font-size: 18px; font-weight: bold; color: #1f77b4; margin: 0;"></p>
+        </div>
+        <input type="hidden" id="transcriptValue" value="">
     </div>
     <script>
         const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
         const status = document.getElementById('status');
         const transcript = document.getElementById('transcript');
+        const transcriptBox = document.getElementById('transcriptBox');
+        const transcriptValue = document.getElementById('transcriptValue');
+
+        let recognition = null;
+        let finalTranscript = '';
+        let isRecording = false;
 
         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            const recognition = new SpeechRecognition();
+            recognition = new SpeechRecognition();
             recognition.lang = 'es-ES';
-            recognition.continuous = false;
-            recognition.interimResults = false;
+            recognition.continuous = true;  // Grabación continua
+            recognition.interimResults = true;  // Mostrar resultados intermedios
+            recognition.maxAlternatives = 1;
 
             startBtn.onclick = function() {
-                recognition.start();
-                status.textContent = 'Escuchando... 🎤';
-                startBtn.style.backgroundColor = '#dc3545';
-                startBtn.textContent = '⏺️ Grabando...';
+                if (!isRecording) {
+                    finalTranscript = '';
+                    recognition.start();
+                    isRecording = true;
+                    status.textContent = '🎤 Grabando... Habla ahora';
+                    startBtn.style.display = 'none';
+                    stopBtn.style.display = 'inline-block';
+                    transcriptBox.style.display = 'block';
+                    transcript.textContent = 'Esperando tu voz...';
+                }
+            };
+
+            stopBtn.onclick = function() {
+                if (isRecording) {
+                    recognition.stop();
+                    isRecording = false;
+                }
             };
 
             recognition.onresult = function(event) {
-                const text = event.results[0][0].transcript;
-                transcript.textContent = 'Dijiste: ' + text;
-                status.textContent = '✅ Grabación completada';
-                startBtn.style.backgroundColor = '#28a745';
-                startBtn.textContent = '🎤 Presiona para hablar';
+                let interimTranscript = '';
 
-                // Enviar texto al input de Streamlit
-                window.parent.postMessage({type: 'streamlit:setComponentValue', value: text}, '*');
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcriptText = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        finalTranscript += transcriptText + ' ';
+                    } else {
+                        interimTranscript += transcriptText;
+                    }
+                }
+
+                transcript.textContent = finalTranscript + interimTranscript;
+                transcriptValue.value = finalTranscript;
+
+                // Enviar a Streamlit
+                window.parent.postMessage({
+                    type: 'streamlit:setComponentValue',
+                    value: finalTranscript.trim()
+                }, '*');
             };
 
             recognition.onerror = function(event) {
-                status.textContent = '❌ Error: ' + event.error;
-                startBtn.style.backgroundColor = '#28a745';
-                startBtn.textContent = '🎤 Presiona para hablar';
+                if (event.error === 'no-speech') {
+                    status.textContent = '⚠️ No se detectó voz. Intenta de nuevo.';
+                } else if (event.error === 'aborted') {
+                    status.textContent = '✅ Grabación detenida';
+                } else {
+                    status.textContent = '❌ Error: ' + event.error;
+                }
+                isRecording = false;
+                startBtn.style.display = 'inline-block';
+                stopBtn.style.display = 'none';
             };
 
             recognition.onend = function() {
-                startBtn.style.backgroundColor = '#28a745';
-                startBtn.textContent = '🎤 Presiona para hablar';
+                if (isRecording) {
+                    // Si se detuvo automáticamente pero queríamos seguir, reiniciar
+                    recognition.start();
+                } else {
+                    status.textContent = '✅ Grabación completada: ' + finalTranscript;
+                    startBtn.style.display = 'inline-block';
+                    stopBtn.style.display = 'none';
+                    startBtn.textContent = '🎤 Grabar otra vez';
+                }
             };
         } else {
-            status.textContent = '❌ Tu navegador no soporta reconocimiento de voz';
+            status.textContent = '❌ Tu navegador no soporta reconocimiento de voz. Usa Chrome, Edge o Safari.';
             startBtn.disabled = true;
         }
     </script>
     """
-    return components.html(voice_html, height=200)
+    return components.html(voice_html, height=250)
 
 # Inicializar estado de sesión
 if "document_loaded" not in st.session_state:
@@ -192,6 +257,12 @@ if "evaluation_history" not in st.session_state:
     st.session_state.evaluation_history = []
 if "total_score" not in st.session_state:
     st.session_state.total_score = 0
+if "show_evaluation" not in st.session_state:
+    st.session_state.show_evaluation = False
+if "current_evaluation" not in st.session_state:
+    st.session_state.current_evaluation = None
+if "voice_transcript" not in st.session_state:
+    st.session_state.voice_transcript = ""
 
 # Header
 st.markdown('<div class="main-header">🎓 Profesor Virtual con IA 🤖</div>', unsafe_allow_html=True)
@@ -241,6 +312,8 @@ with st.sidebar:
             st.session_state.current_question_index = 0
             st.session_state.evaluation_history = []
             st.session_state.total_score = 0
+            st.session_state.show_evaluation = False
+            st.session_state.current_evaluation = None
             st.rerun()
 
     st.markdown("---")
@@ -318,6 +391,8 @@ with col2:
                 st.session_state.questions = []
                 st.session_state.current_question_index = 0
                 st.session_state.evaluation_history = []
+                st.session_state.show_evaluation = False
+                st.session_state.current_evaluation = None
                 st.rerun()
     else:
         st.warning("⚠️ Primero debes cargar un documento")
@@ -336,144 +411,146 @@ if st.session_state.questions:
         progress = (current_idx) / len(st.session_state.questions)
         st.progress(progress, text=f"Pregunta {current_idx + 1} de {len(st.session_state.questions)}")
 
-        # Mostrar pregunta
-        st.markdown(f'<div class="question-box"><h3>Pregunta {current_idx + 1}</h3><p style="font-size: 1.2rem;">{current_q.get("pregunta", "")}</p></div>', unsafe_allow_html=True)
+        # Mostrar pregunta con mejor contraste
+        st.markdown(f"""
+        <div class="question-box">
+            <h3 style="color: #1f77b4;">Pregunta {current_idx + 1}</h3>
+            <p style="font-size: 1.2rem; color: #2c2c2c; font-weight: 500;">{current_q.get("pregunta", "")}</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Mostrar contexto adicional si está disponible
+        if current_q.get("contexto"):
+            st.info(f"📖 Contexto: {current_q.get('contexto')}")
 
         # Botón para leer pregunta en voz alta
-        col_speak, col_input = st.columns([1, 3])
+        col_speak, col_space = st.columns([1, 3])
         with col_speak:
             if st.button("🔊 Escuchar pregunta", use_container_width=True):
                 speak_text(current_q.get("pregunta", ""))
 
-        # Tabs para respuesta por texto o voz
-        tab1, tab2 = st.tabs(["✍️ Escribir respuesta", "🎤 Responder por voz"])
+        # Si ya se mostró una evaluación, mostrarla y dar opción de continuar
+        if st.session_state.show_evaluation and st.session_state.current_evaluation:
+            evaluation = st.session_state.current_evaluation
+            is_correct = evaluation.get("es_correcta", False)
+            score = evaluation.get("puntaje", 0)
+            feedback = evaluation.get("feedback", "")
 
-        with tab1:
-            student_answer = st.text_area(
-                "Tu respuesta:",
-                height=150,
-                placeholder="Escribe tu respuesta aquí..."
-            )
+            # Clase CSS según el resultado
+            feedback_class = "feedback-correct" if is_correct else "feedback-incorrect"
 
-            if st.button("📤 Enviar respuesta escrita", use_container_width=True):
-                if student_answer.strip():
-                    with st.spinner("🤖 Evaluando tu respuesta..."):
-                        try:
-                            evaluator = AnswerEvaluator()
-                            evaluation = evaluator.evaluate_answer(
-                                question=current_q.get("pregunta", ""),
-                                student_answer=student_answer,
-                                expected_answer=current_q.get("respuesta_esperada", ""),
-                                keywords=current_q.get("palabras_clave", []),
-                                document_context=st.session_state.document_content
-                            )
+            # Badge de puntaje
+            if score >= 90:
+                score_class = "score-excellent"
+            elif score >= 70:
+                score_class = "score-good"
+            elif score >= 50:
+                score_class = "score-regular"
+            else:
+                score_class = "score-poor"
 
-                            # Guardar evaluación
-                            st.session_state.evaluation_history.append(evaluation)
+            st.markdown(f'<div class="{feedback_class}">', unsafe_allow_html=True)
+            st.markdown(f'<span class="score-badge {score_class}">Puntaje: {score}/100</span>', unsafe_allow_html=True)
+            st.markdown(f'<p style="margin-top: 1rem; color: inherit; font-size: 1.1rem;">{feedback}</p>', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
 
-                            # Mostrar resultado
-                            is_correct = evaluation.get("es_correcta", False)
-                            score = evaluation.get("puntaje", 0)
-                            feedback = evaluation.get("feedback", "")
+            # Botón para siguiente pregunta (siempre visible después de evaluar)
+            col1, col2, col3 = st.columns([1, 2, 1])
+            with col2:
+                if st.button("➡️ Continuar a la siguiente pregunta", use_container_width=True, type="primary"):
+                    st.session_state.current_question_index += 1
+                    st.session_state.show_evaluation = False
+                    st.session_state.current_evaluation = None
+                    st.rerun()
 
-                            # Clase CSS según el resultado
-                            feedback_class = "feedback-correct" if is_correct else "feedback-incorrect"
+        else:
+            # Tabs para respuesta por texto o voz
+            tab1, tab2 = st.tabs(["✍️ Escribir respuesta", "🎤 Responder por voz"])
 
-                            # Badge de puntaje
-                            if score >= 90:
-                                score_class = "score-excellent"
-                            elif score >= 70:
-                                score_class = "score-good"
-                            elif score >= 50:
-                                score_class = "score-regular"
-                            else:
-                                score_class = "score-poor"
+            with tab1:
+                student_answer = st.text_area(
+                    "Tu respuesta:",
+                    height=150,
+                    placeholder="Escribe tu respuesta aquí...",
+                    key=f"text_answer_{current_idx}"
+                )
 
-                            st.markdown(f'<div class="{feedback_class}">', unsafe_allow_html=True)
-                            st.markdown(f'<span class="score-badge {score_class}">Puntaje: {score}/100</span>', unsafe_allow_html=True)
-                            st.markdown(f'<p style="margin-top: 1rem;">{feedback}</p>', unsafe_allow_html=True)
-                            st.markdown('</div>', unsafe_allow_html=True)
+                if st.button("📤 Enviar respuesta escrita", use_container_width=True, key=f"submit_text_{current_idx}"):
+                    if student_answer.strip():
+                        with st.spinner("🤖 Evaluando tu respuesta..."):
+                            try:
+                                evaluator = AnswerEvaluator()
+                                evaluation = evaluator.evaluate_answer(
+                                    question=current_q.get("pregunta", ""),
+                                    student_answer=student_answer,
+                                    expected_answer=current_q.get("respuesta_esperada", ""),
+                                    keywords=current_q.get("palabras_clave", []),
+                                    document_context=st.session_state.document_content
+                                )
 
-                            # Leer feedback en voz
-                            feedback_speech = evaluator.format_feedback_for_speech(evaluation)
-                            speak_text(feedback_speech)
+                                # Guardar evaluación
+                                st.session_state.evaluation_history.append(evaluation)
+                                st.session_state.show_evaluation = True
+                                st.session_state.current_evaluation = evaluation
 
-                            # Botón para siguiente pregunta
-                            if st.button("➡️ Siguiente pregunta", use_container_width=True):
-                                st.session_state.current_question_index += 1
+                                # Leer feedback en voz
+                                feedback_speech = evaluator.format_feedback_for_speech(evaluation)
+                                speak_text(feedback_speech)
+
+                                # Recargar para mostrar evaluación
                                 st.rerun()
 
-                        except Exception as e:
-                            st.error(f"❌ Error al evaluar: {str(e)}")
-                else:
-                    st.warning("⚠️ Por favor, escribe una respuesta")
+                            except Exception as e:
+                                st.error(f"❌ Error al evaluar: {str(e)}")
+                    else:
+                        st.warning("⚠️ Por favor, escribe una respuesta")
 
-        with tab2:
-            st.info("🎤 Presiona el botón del micrófono y habla tu respuesta. El sistema te escuchará y evaluará tu respuesta.")
+            with tab2:
+                st.info("🎤 **Instrucciones:** Presiona 'Mantén presionado para hablar', habla tu respuesta completa, y luego presiona 'Detener' cuando termines.")
 
-            # Componente de voz
-            voice_result = get_voice_input()
+                # Componente de voz mejorado
+                voice_result = get_voice_input_component()
 
-            st.markdown("**O escribe manualmente lo que dijiste:**")
-            voice_answer = st.text_area(
-                "Respuesta por voz (se llenará automáticamente):",
-                height=100,
-                key="voice_answer_input",
-                placeholder="Tu respuesta por voz aparecerá aquí..."
-            )
+                st.markdown("---")
+                st.markdown("**Revisa y edita tu respuesta capturada:**")
 
-            if st.button("📤 Enviar respuesta por voz", use_container_width=True):
-                if voice_answer and voice_answer.strip():
-                    with st.spinner("🤖 Evaluando tu respuesta..."):
-                        try:
-                            evaluator = AnswerEvaluator()
-                            evaluation = evaluator.evaluate_answer(
-                                question=current_q.get("pregunta", ""),
-                                student_answer=voice_answer,
-                                expected_answer=current_q.get("respuesta_esperada", ""),
-                                keywords=current_q.get("palabras_clave", []),
-                                document_context=st.session_state.document_content
-                            )
+                voice_answer = st.text_area(
+                    "Tu respuesta por voz:",
+                    height=120,
+                    key=f"voice_answer_{current_idx}",
+                    placeholder="Tu respuesta por voz aparecerá aquí. Puedes editarla antes de enviar.",
+                    value=st.session_state.get("voice_transcript", "")
+                )
 
-                            # Guardar evaluación
-                            st.session_state.evaluation_history.append(evaluation)
+                if st.button("📤 Enviar respuesta por voz", use_container_width=True, key=f"submit_voice_{current_idx}"):
+                    if voice_answer and voice_answer.strip():
+                        with st.spinner("🤖 Evaluando tu respuesta..."):
+                            try:
+                                evaluator = AnswerEvaluator()
+                                evaluation = evaluator.evaluate_answer(
+                                    question=current_q.get("pregunta", ""),
+                                    student_answer=voice_answer,
+                                    expected_answer=current_q.get("respuesta_esperada", ""),
+                                    keywords=current_q.get("palabras_clave", []),
+                                    document_context=st.session_state.document_content
+                                )
 
-                            # Mostrar resultado
-                            is_correct = evaluation.get("es_correcta", False)
-                            score = evaluation.get("puntaje", 0)
-                            feedback = evaluation.get("feedback", "")
+                                # Guardar evaluación
+                                st.session_state.evaluation_history.append(evaluation)
+                                st.session_state.show_evaluation = True
+                                st.session_state.current_evaluation = evaluation
 
-                            # Clase CSS según el resultado
-                            feedback_class = "feedback-correct" if is_correct else "feedback-incorrect"
+                                # Leer feedback en voz
+                                feedback_speech = evaluator.format_feedback_for_speech(evaluation)
+                                speak_text(feedback_speech)
 
-                            # Badge de puntaje
-                            if score >= 90:
-                                score_class = "score-excellent"
-                            elif score >= 70:
-                                score_class = "score-good"
-                            elif score >= 50:
-                                score_class = "score-regular"
-                            else:
-                                score_class = "score-poor"
-
-                            st.markdown(f'<div class="{feedback_class}">', unsafe_allow_html=True)
-                            st.markdown(f'<span class="score-badge {score_class}">Puntaje: {score}/100</span>', unsafe_allow_html=True)
-                            st.markdown(f'<p style="margin-top: 1rem;">{feedback}</p>', unsafe_allow_html=True)
-                            st.markdown('</div>', unsafe_allow_html=True)
-
-                            # Leer feedback en voz
-                            feedback_speech = evaluator.format_feedback_for_speech(evaluation)
-                            speak_text(feedback_speech)
-
-                            # Botón para siguiente pregunta
-                            if st.button("➡️ Siguiente pregunta", key="next_voice", use_container_width=True):
-                                st.session_state.current_question_index += 1
+                                # Recargar para mostrar evaluación
                                 st.rerun()
 
-                        except Exception as e:
-                            st.error(f"❌ Error al evaluar: {str(e)}")
-                else:
-                    st.warning("⚠️ Por favor, graba tu respuesta o escríbela manualmente")
+                            except Exception as e:
+                                st.error(f"❌ Error al evaluar: {str(e)}")
+                    else:
+                        st.warning("⚠️ Por favor, graba tu respuesta o escríbela manualmente en el cuadro de texto")
 
     else:
         # Completado
@@ -512,6 +589,7 @@ if st.session_state.questions:
                     st.markdown(f"**Pregunta {idx}**")
                     st.write(f"Puntaje: {eval_item.get('puntaje', 0)}/100")
                     st.write(f"Nivel: {eval_item.get('nivel', 'N/A')}")
+                    st.write(f"Correcta: {'✅' if eval_item.get('es_correcta') else '❌'}")
                     st.markdown("---")
 
 # Footer
