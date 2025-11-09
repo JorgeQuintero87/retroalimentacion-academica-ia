@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nave Espacial - Control con Movimiento de Cabeza</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(to bottom, #000428, #004e92);
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        #gameCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%);
+        }
+
+        #videoElement {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 200px;
+            height: 150px;
+            border: 3px solid #00ff41;
+            border-radius: 10px;
+            transform: scaleX(-1);
+            z-index: 10;
+        }
+
+        #controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+            border-radius: 10px;
+            color: #00ff41;
+            font-size: 14px;
+            z-index: 10;
+            max-width: 300px;
+        }
+
+        #startButton {
+            background: #00ff41;
+            color: #000;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: all 0.3s;
+        }
+
+        #startButton:hover {
+            background: #00cc33;
+            transform: scale(1.05);
+        }
+
+        #startButton:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+
+        #score {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        #instructions {
+            margin-top: 10px;
+            line-height: 1.5;
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #00ff41;
+            font-size: 24px;
+            text-align: center;
+            z-index: 20;
+        }
+
+        .error {
+            color: #ff4444;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+        <video id="videoElement" autoplay playsinline></video>
+
+        <div id="controls">
+            <div id="score">Puntos: 0</div>
+            <div id="status">Estado: Esperando...</div>
+            <button id="startButton">Iniciar Juego</button>
+            <div id="instructions">
+                <h3>Instrucciones:</h3>
+                <ul>
+                    <li>Mueve tu cabeza para controlar la nave</li>
+                    <li>Izquierda/Derecha: mueve la nave</li>
+                    <li>Arriba/Abajo: mueve la nave</li>
+                    <li>Evita los asteroides</li>
+                    <li>Recoge las estrellas</li>
+                </ul>
+            </div>
+        </div>
+
+        <div id="loading" class="loading" style="display:none;">
+            Cargando modelo de detección facial...<br>
+            <small>Por favor espera...</small>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils"></script>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const video = document.getElementById('videoElement');
+        const startButton = document.getElementById('startButton');
+        const scoreElement = document.getElementById('score');
+        const statusElement = document.getElementById('status');
+        const loadingElement = document.getElementById('loading');
+
+        // Ajustar tamaño del canvas
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+
+        // Variables del juego
+        let gameStarted = false;
+        let score = 0;
+        let headPosition = { x: 0.5, y: 0.5 }; // Normalizado 0-1
+        let faceDetected = false;
+
+        // Nave espacial
+        const spaceship = {
+            x: canvas.width / 2,
+            y: canvas.height / 2,
+            width: 40,
+            height: 60,
+            speed: 5
+        };
+
+        // Asteroides
+        let asteroids = [];
+        const asteroidSpeed = 2;
+
+        // Estrellas (power-ups)
+        let stars = [];
+
+        // Estrellas de fondo
+        let backgroundStars = [];
+
+        // Inicializar estrellas de fondo
+        function initBackgroundStars() {
+            backgroundStars = [];
+            for (let i = 0; i < 100; i++) {
+                backgroundStars.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    size: Math.random() * 2,
+                    speed: Math.random() * 0.5 + 0.1
+                });
+            }
+        }
+
+        // Dibujar nave espacial
+        function drawSpaceship() {
+            ctx.save();
+            ctx.translate(spaceship.x, spaceship.y);
+
+            // Cuerpo de la nave
+            ctx.fillStyle = '#00ff41';
+            ctx.beginPath();
+            ctx.moveTo(0, -30);
+            ctx.lineTo(-20, 30);
+            ctx.lineTo(20, 30);
+            ctx.closePath();
+            ctx.fill();
+
+            // Cabina
+            ctx.fillStyle = '#00ccff';
+            ctx.beginPath();
+            ctx.arc(0, 0, 10, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Propulsor
+            if (gameStarted) {
+                ctx.fillStyle = '#ff6600';
+                ctx.beginPath();
+                ctx.moveTo(-10, 30);
+                ctx.lineTo(0, 45 + Math.random() * 5);
+                ctx.lineTo(10, 30);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            ctx.restore();
+        }
+
+        // Dibujar asteroide
+        function drawAsteroid(asteroid) {
+            ctx.fillStyle = '#8b4513';
+            ctx.beginPath();
+            ctx.arc(asteroid.x, asteroid.y, asteroid.size, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.strokeStyle = '#654321';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+
+        // Dibujar estrella
+        function drawStar(star) {
+            ctx.save();
+            ctx.translate(star.x, star.y);
+            ctx.rotate(star.rotation);
+
+            ctx.fillStyle = '#ffff00';
+            ctx.beginPath();
+            for (let i = 0; i < 5; i++) {
+                ctx.lineTo(Math.cos((18 + i * 72) * Math.PI / 180) * star.size,
+                          Math.sin((18 + i * 72) * Math.PI / 180) * star.size);
+                ctx.lineTo(Math.cos((54 + i * 72) * Math.PI / 180) * star.size / 2,
+                          Math.sin((54 + i * 72) * Math.PI / 180) * star.size / 2);
+            }
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        // Dibujar estrellas de fondo
+        function drawBackgroundStars() {
+            ctx.fillStyle = '#ffffff';
+            backgroundStars.forEach(star => {
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+
+        // Actualizar estrellas de fondo
+        function updateBackgroundStars() {
+            backgroundStars.forEach(star => {
+                star.y += star.speed;
+                if (star.y > canvas.height) {
+                    star.y = 0;
+                    star.x = Math.random() * canvas.width;
+                }
+            });
+        }
+
+        // Crear asteroide
+        function createAsteroid() {
+            return {
+                x: Math.random() * canvas.width,
+                y: -50,
+                size: Math.random() * 20 + 20,
+                speed: asteroidSpeed + Math.random() * 2
+            };
+        }
+
+        // Crear estrella
+        function createStar() {
+            return {
+                x: Math.random() * canvas.width,
+                y: -30,
+                size: 15,
+                speed: 3,
+                rotation: 0
+            };
+        }
+
+        // Detectar colisión
+        function checkCollision(obj1, obj2, radius1, radius2) {
+            const dx = obj1.x - obj2.x;
+            const dy = obj1.y - obj2.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            return distance < radius1 + radius2;
+        }
+
+        // Actualizar juego
+        function updateGame() {
+            if (!gameStarted) return;
+
+            // Actualizar posición de la nave según el movimiento de la cabeza
+            if (faceDetected) {
+                const targetX = headPosition.x * canvas.width;
+                const targetY = headPosition.y * canvas.height;
+
+                spaceship.x += (targetX - spaceship.x) * 0.1;
+                spaceship.y += (targetY - spaceship.y) * 0.1;
+            }
+
+            // Mantener la nave dentro del canvas
+            spaceship.x = Math.max(30, Math.min(canvas.width - 30, spaceship.x));
+            spaceship.y = Math.max(30, Math.min(canvas.height - 30, spaceship.y));
+
+            // Actualizar asteroides
+            asteroids.forEach((asteroid, index) => {
+                asteroid.y += asteroid.speed;
+
+                // Eliminar asteroides fuera de pantalla
+                if (asteroid.y > canvas.height + 50) {
+                    asteroids.splice(index, 1);
+                    score += 1; // Punto por evitar asteroide
+                    scoreElement.textContent = `Puntos: ${score}`;
+                }
+
+                // Verificar colisión con nave
+                if (checkCollision(spaceship, asteroid, 20, asteroid.size)) {
+                    gameOver();
+                }
+            });
+
+            // Actualizar estrellas
+            stars.forEach((star, index) => {
+                star.y += star.speed;
+                star.rotation += 0.1;
+
+                // Eliminar estrellas fuera de pantalla
+                if (star.y > canvas.height + 30) {
+                    stars.splice(index, 1);
+                }
+
+                // Verificar colisión con nave
+                if (checkCollision(spaceship, star, 20, star.size)) {
+                    stars.splice(index, 1);
+                    score += 10; // Bonus por recoger estrella
+                    scoreElement.textContent = `Puntos: ${score}`;
+                }
+            });
+
+            // Crear nuevos asteroides aleatoriamente
+            if (Math.random() < 0.02) {
+                asteroids.push(createAsteroid());
+            }
+
+            // Crear nuevas estrellas aleatoriamente
+            if (Math.random() < 0.01) {
+                stars.push(createStar());
+            }
+
+            updateBackgroundStars();
+        }
+
+        // Dibujar juego
+        function drawGame() {
+            // Limpiar canvas
+            ctx.fillStyle = 'rgba(9, 10, 15, 0.2)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            drawBackgroundStars();
+
+            asteroids.forEach(drawAsteroid);
+            stars.forEach(drawStar);
+            drawSpaceship();
+
+            // Mostrar indicador de detección facial
+            if (faceDetected) {
+                ctx.fillStyle = '#00ff41';
+                ctx.font = '16px Arial';
+                ctx.fillText('✓ Rostro detectado', 10, canvas.height - 20);
+            } else {
+                ctx.fillStyle = '#ff4444';
+                ctx.font = '16px Arial';
+                ctx.fillText('✗ Rostro no detectado', 10, canvas.height - 20);
+            }
+        }
+
+        // Game loop
+        function gameLoop() {
+            updateGame();
+            drawGame();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Game Over
+        function gameOver() {
+            gameStarted = false;
+            alert(`¡Game Over! Puntuación final: ${score}`);
+            asteroids = [];
+            stars = [];
+            score = 0;
+            scoreElement.textContent = `Puntos: ${score}`;
+            startButton.disabled = false;
+            statusElement.textContent = 'Estado: Game Over';
+        }
+
+        // Configurar detección facial con MediaPipe
+        async function setupFaceDetection() {
+            loadingElement.style.display = 'block';
+            statusElement.textContent = 'Estado: Cargando modelo...';
+
+            try {
+                const faceDetection = new FaceDetection({
+                    locateFile: (file) => {
+                        return `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}`;
+                    }
+                });
+
+                faceDetection.setOptions({
+                    model: 'short',
+                    minDetectionConfidence: 0.5
+                });
+
+                faceDetection.onResults((results) => {
+                    if (results.detections && results.detections.length > 0) {
+                        const detection = results.detections[0];
+                        const bbox = detection.boundingBox;
+
+                        // Calcular posición central de la cara
+                        // Invertir X porque el video está en espejo
+                        headPosition.x = 1 - (bbox.xCenter);
+                        headPosition.y = bbox.yCenter;
+
+                        faceDetected = true;
+                    } else {
+                        faceDetected = false;
+                    }
+                });
+
+                // Configurar cámara
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: 640, height: 480 }
+                });
+
+                video.srcObject = stream;
+
+                const camera = new Camera(video, {
+                    onFrame: async () => {
+                        await faceDetection.send({ image: video });
+                    },
+                    width: 640,
+                    height: 480
+                });
+
+                await camera.start();
+
+                loadingElement.style.display = 'none';
+                statusElement.textContent = 'Estado: Listo para jugar';
+                startButton.disabled = false;
+
+            } catch (error) {
+                console.error('Error al configurar detección facial:', error);
+                loadingElement.innerHTML = '<span class="error">Error: No se pudo acceder a la cámara.<br>Por favor, permite el acceso a la cámara.</span>';
+                statusElement.innerHTML = '<span class="error">Estado: Error</span>';
+            }
+        }
+
+        // Iniciar juego
+        startButton.addEventListener('click', () => {
+            if (!gameStarted) {
+                gameStarted = true;
+                score = 0;
+                asteroids = [];
+                stars = [];
+                scoreElement.textContent = `Puntos: ${score}`;
+                startButton.disabled = true;
+                statusElement.textContent = 'Estado: ¡Jugando!';
+            }
+        });
+
+        // Inicializar
+        initBackgroundStars();
+        setupFaceDetection();
+        gameLoop();
+
+    </script>
+</body>
+</html>
