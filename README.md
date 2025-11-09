@@ -2,6 +2,18 @@
 
 Sistema automatizado para evaluar documentos académicos (PDF, imágenes, Jupyter Notebooks) con feedback personalizado usando IA.
 
+## Proyectos incluidos
+
+### 1. Sistema de Retroalimentación Académica
+Sistema principal de evaluación de documentos académicos con IA.
+
+### 2. [Medidor de Velocidad de Mano](./speed-measurement/)
+Aplicación web que utiliza IA para medir la velocidad con la que bajas tu mano usando la cámara.
+- Detección de manos en tiempo real con MediaPipe
+- Cálculo de velocidad, distancia y tiempo
+- Interfaz moderna y responsive
+- [Ver demo](https://jorgeQuintero87.github.io/retroalimentacion-academica-ia/speed-measurement/)
+
 ## Características
 
 - ✅ Soporta PDFs con texto y con imágenes (OCR)

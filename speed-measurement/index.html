@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medidor de Velocidad de Mano</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            color: white;
+        }
+
+        .container {
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .subtitle {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .video-container {
+            position: relative;
+            background: rgba(0,0,0,0.3);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .video-wrapper {
+            position: relative;
+            width: 100%;
+            max-width: 640px;
+            margin: 0 auto;
+        }
+
+        video {
+            width: 100%;
+            height: auto;
+            border-radius: 10px;
+            transform: scaleX(-1);
+            display: none;
+        }
+
+        canvas {
+            width: 100%;
+            height: auto;
+            border-radius: 10px;
+            transform: scaleX(-1);
+            background: #000;
+        }
+
+        .status {
+            text-align: center;
+            margin-top: 15px;
+            padding: 10px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            font-size: 1.1rem;
+        }
+
+        .status.ready {
+            background: rgba(76, 175, 80, 0.3);
+        }
+
+        .status.measuring {
+            background: rgba(255, 152, 0, 0.3);
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .metrics-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .metric-card {
+            background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 25px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            transition: transform 0.3s ease;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .metric-label {
+            font-size: 0.9rem;
+            opacity: 0.8;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .metric-unit {
+            font-size: 1rem;
+            opacity: 0.7;
+            margin-left: 5px;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-bottom: 30px;
+        }
+
+        button {
+            padding: 15px 30px;
+            font-size: 1.1rem;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.2);
+            color: white;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .instructions {
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .instructions h3 {
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+        }
+
+        .instructions ol {
+            margin-left: 20px;
+            line-height: 1.8;
+        }
+
+        .instructions li {
+            margin-bottom: 10px;
+        }
+
+        .history {
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .history h3 {
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+        }
+
+        .history-item {
+            background: rgba(255,255,255,0.1);
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .history-item:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            opacity: 0.8;
+            font-size: 0.9rem;
+        }
+
+        .footer a {
+            color: white;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 1.2rem;
+        }
+
+        .spinner {
+            border: 4px solid rgba(255,255,255,0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⚡ Medidor de Velocidad de Mano</h1>
+        <p class="subtitle">Mide qué tan rápido bajas tu mano usando inteligencia artificial</p>
+
+        <div class="instructions">
+            <h3>📋 Instrucciones:</h3>
+            <ol>
+                <li>Permite el acceso a la cámara cuando te lo solicite el navegador</li>
+                <li>Coloca tu mano en la parte superior del encuadre de la cámara</li>
+                <li>Haz clic en "Iniciar Medición" y baja tu mano rápidamente hacia abajo</li>
+                <li>El sistema detectará automáticamente el movimiento y calculará la velocidad</li>
+                <li>Puedes reiniciar y volver a medir cuantas veces quieras</li>
+            </ol>
+        </div>
+
+        <div class="video-container">
+            <div class="video-wrapper">
+                <video id="video" autoplay playsinline></video>
+                <canvas id="canvas" width="640" height="480"></canvas>
+            </div>
+            <div id="status" class="status">Iniciando cámara...</div>
+        </div>
+
+        <div class="controls">
+            <button id="startBtn" class="btn-primary" onclick="startMeasurement()">Iniciar Medición</button>
+            <button id="resetBtn" class="btn-secondary" onclick="resetMeasurement()">Reiniciar</button>
+        </div>
+
+        <div class="metrics-container">
+            <div class="metric-card">
+                <div class="metric-label">Velocidad</div>
+                <div class="metric-value">
+                    <span id="speed">0</span>
+                    <span class="metric-unit">cm/s</span>
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Distancia</div>
+                <div class="metric-value">
+                    <span id="distance">0</span>
+                    <span class="metric-unit">cm</span>
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Tiempo</div>
+                <div class="metric-value">
+                    <span id="time">0</span>
+                    <span class="metric-unit">ms</span>
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Velocidad Máxima</div>
+                <div class="metric-value">
+                    <span id="maxSpeed">0</span>
+                    <span class="metric-unit">cm/s</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="history">
+            <h3>📊 Historial de Mediciones</h3>
+            <div id="historyList">
+                <p style="opacity: 0.7; text-align: center;">No hay mediciones aún</p>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>Desarrollado con ❤️ usando MediaPipe Hands</p>
+            <p><a href="https://github.com/JorgeQuintero87/retroalimentacion-academica-ia" target="_blank">Ver en GitHub</a></p>
+        </div>
+    </div>
+
+    <script>
+        // Variables globales
+        let hands;
+        let camera;
+        let measuring = false;
+        let startPosition = null;
+        let startTime = null;
+        let previousPosition = null;
+        let previousTime = null;
+        let maxSpeed = 0;
+        let measurementHistory = [];
+        let currentSpeed = 0;
+        let totalDistance = 0;
+        let handDetected = false;
+
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const canvasCtx = canvas.getContext('2d');
+        const statusDiv = document.getElementById('status');
+
+        // Inicializar MediaPipe Hands
+        function initializeHands() {
+            hands = new Hands({locateFile: (file) => {
+                return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+            }});
+
+            hands.setOptions({
+                maxNumHands: 1,
+                modelComplexity: 1,
+                minDetectionConfidence: 0.7,
+                minTrackingConfidence: 0.7
+            });
+
+            hands.onResults(onResults);
+        }
+
+        // Procesar resultados de detección de manos
+        function onResults(results) {
+            // Limpiar canvas
+            canvasCtx.save();
+            canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+            canvasCtx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
+
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                handDetected = true;
+                const landmarks = results.multiHandLandmarks[0];
+
+                // Dibujar mano
+                drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {color: '#00FF00', lineWidth: 4});
+                drawLandmarks(canvasCtx, landmarks, {color: '#FF0000', lineWidth: 2, radius: 4});
+
+                // Obtener posición de la muñeca (landmark 0)
+                const wrist = landmarks[0];
+                const currentPosition = {
+                    x: wrist.x * canvas.width,
+                    y: wrist.y * canvas.height,
+                    z: wrist.z
+                };
+
+                if (measuring) {
+                    const currentTime = Date.now();
+
+                    if (startPosition === null) {
+                        startPosition = currentPosition;
+                        startTime = currentTime;
+                        previousPosition = currentPosition;
+                        previousTime = currentTime;
+                        statusDiv.textContent = '🎯 ¡Baja la mano ahora!';
+                        statusDiv.className = 'status measuring';
+                    } else {
+                        // Calcular distancia en píxeles y convertir a cm (aproximadamente)
+                        const dx = currentPosition.x - previousPosition.x;
+                        const dy = currentPosition.y - previousPosition.y;
+                        const dz = (currentPosition.z - previousPosition.z) * 100; // Z está normalizado
+
+                        const distancePixels = Math.sqrt(dx * dx + dy * dy + dz * dz);
+                        // Conversión aproximada: asumiendo que la mano tiene ~20cm de altura en pantalla
+                        const pixelsToCm = 20 / 200; // 200 píxeles ≈ 20 cm (ajustable)
+                        const distanceCm = distancePixels * pixelsToCm;
+
+                        // Calcular tiempo transcurrido
+                        const timeDelta = (currentTime - previousTime) / 1000; // en segundos
+
+                        if (timeDelta > 0 && dy > 0) { // Solo contar movimiento hacia abajo
+                            // Calcular velocidad instantánea
+                            currentSpeed = distanceCm / timeDelta;
+
+                            // Actualizar velocidad máxima
+                            if (currentSpeed > maxSpeed) {
+                                maxSpeed = currentSpeed;
+                            }
+
+                            // Acumular distancia total
+                            totalDistance += distanceCm;
+
+                            // Actualizar métricas en pantalla
+                            document.getElementById('speed').textContent = currentSpeed.toFixed(2);
+                            document.getElementById('maxSpeed').textContent = maxSpeed.toFixed(2);
+                            document.getElementById('distance').textContent = totalDistance.toFixed(2);
+                            document.getElementById('time').textContent = (currentTime - startTime).toFixed(0);
+                        }
+
+                        // Actualizar posición y tiempo previos
+                        previousPosition = currentPosition;
+                        previousTime = currentTime;
+
+                        // Detectar si el movimiento ha terminado (mano se detuvo)
+                        if (currentSpeed < 5 && totalDistance > 5) { // umbral de velocidad mínima y distancia mínima
+                            setTimeout(() => {
+                                if (measuring && currentSpeed < 5) {
+                                    finishMeasurement();
+                                }
+                            }, 500);
+                        }
+                    }
+                } else {
+                    if (!statusDiv.classList.contains('ready')) {
+                        statusDiv.textContent = '✅ Mano detectada - Listo para medir';
+                        statusDiv.className = 'status ready';
+                        document.getElementById('startBtn').disabled = false;
+                    }
+                }
+            } else {
+                handDetected = false;
+                if (!measuring) {
+                    statusDiv.textContent = '🖐️ Por favor, muestra tu mano a la cámara';
+                    statusDiv.className = 'status';
+                    document.getElementById('startBtn').disabled = true;
+                }
+            }
+
+            canvasCtx.restore();
+        }
+
+        // Iniciar cámara
+        async function startCamera() {
+            try {
+                camera = new Camera(video, {
+                    onFrame: async () => {
+                        await hands.send({image: video});
+                    },
+                    width: 640,
+                    height: 480
+                });
+                await camera.start();
+                statusDiv.textContent = '🖐️ Por favor, muestra tu mano a la cámara';
+            } catch (error) {
+                statusDiv.textContent = '❌ Error al acceder a la cámara: ' + error.message;
+                statusDiv.className = 'status';
+            }
+        }
+
+        // Iniciar medición
+        function startMeasurement() {
+            if (!handDetected) {
+                alert('Por favor, asegúrate de que tu mano sea visible en la cámara');
+                return;
+            }
+
+            measuring = true;
+            startPosition = null;
+            startTime = null;
+            previousPosition = null;
+            previousTime = null;
+            maxSpeed = 0;
+            currentSpeed = 0;
+            totalDistance = 0;
+
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('resetBtn').disabled = false;
+
+            statusDiv.textContent = '🎬 Preparado... ¡Baja la mano!';
+            statusDiv.className = 'status measuring';
+        }
+
+        // Finalizar medición
+        function finishMeasurement() {
+            if (!measuring) return;
+
+            measuring = false;
+
+            // Guardar en historial
+            const measurement = {
+                speed: maxSpeed.toFixed(2),
+                distance: totalDistance.toFixed(2),
+                time: (Date.now() - startTime).toFixed(0),
+                timestamp: new Date().toLocaleTimeString()
+            };
+
+            measurementHistory.unshift(measurement);
+            if (measurementHistory.length > 10) {
+                measurementHistory.pop();
+            }
+
+            updateHistory();
+
+            statusDiv.textContent = `✨ ¡Medición completada! Velocidad máxima: ${maxSpeed.toFixed(2)} cm/s`;
+            statusDiv.className = 'status ready';
+
+            document.getElementById('startBtn').disabled = false;
+        }
+
+        // Reiniciar medición
+        function resetMeasurement() {
+            measuring = false;
+            startPosition = null;
+            startTime = null;
+            previousPosition = null;
+            previousTime = null;
+            maxSpeed = 0;
+            currentSpeed = 0;
+            totalDistance = 0;
+
+            document.getElementById('speed').textContent = '0';
+            document.getElementById('distance').textContent = '0';
+            document.getElementById('time').textContent = '0';
+            document.getElementById('maxSpeed').textContent = '0';
+
+            document.getElementById('startBtn').disabled = !handDetected;
+
+            statusDiv.textContent = handDetected ? '✅ Mano detectada - Listo para medir' : '🖐️ Por favor, muestra tu mano a la cámara';
+            statusDiv.className = handDetected ? 'status ready' : 'status';
+        }
+
+        // Actualizar historial
+        function updateHistory() {
+            const historyList = document.getElementById('historyList');
+
+            if (measurementHistory.length === 0) {
+                historyList.innerHTML = '<p style="opacity: 0.7; text-align: center;">No hay mediciones aún</p>';
+                return;
+            }
+
+            historyList.innerHTML = measurementHistory.map((m, index) => `
+                <div class="history-item">
+                    <div>
+                        <strong>#${index + 1}</strong> - ${m.timestamp}
+                    </div>
+                    <div>
+                        ${m.speed} cm/s | ${m.distance} cm | ${m.time} ms
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Inicializar aplicación
+        window.addEventListener('load', async () => {
+            initializeHands();
+            await startCamera();
+            document.getElementById('startBtn').disabled = true;
+        });
+    </script>
+</body>
+</html>
