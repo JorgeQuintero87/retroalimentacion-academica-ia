@@ -133,118 +133,7 @@ def speak_text(text: str):
     """
     components.html(speech_html, height=0)
 
-# Función para obtener reconocimiento de voz (STT) - Mejorado con más tiempo
-def get_voice_input_component():
-    """Componente para capturar voz del estudiante con más tiempo de grabación"""
-    voice_html = """
-    <div style="text-align: center; padding: 20px;">
-        <button id="startBtn" style="padding: 15px 30px; font-size: 18px; background-color: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer;">
-            🎤 Mantén presionado para hablar
-        </button>
-        <button id="stopBtn" style="padding: 15px 30px; font-size: 18px; background-color: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer; margin-left: 10px; display: none;">
-            ⏹️ Detener
-        </button>
-        <p id="status" style="margin-top: 15px; font-size: 16px; color: #666;"></p>
-        <div id="transcriptBox" style="margin-top: 15px; padding: 15px; background-color: #f0f2f6; border-radius: 8px; min-height: 60px; display: none;">
-            <p id="transcript" style="font-size: 18px; font-weight: bold; color: #1f77b4; margin: 0;"></p>
-        </div>
-        <input type="hidden" id="transcriptValue" value="">
-    </div>
-    <script>
-        const startBtn = document.getElementById('startBtn');
-        const stopBtn = document.getElementById('stopBtn');
-        const status = document.getElementById('status');
-        const transcript = document.getElementById('transcript');
-        const transcriptBox = document.getElementById('transcriptBox');
-        const transcriptValue = document.getElementById('transcriptValue');
-
-        let recognition = null;
-        let finalTranscript = '';
-        let isRecording = false;
-
-        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            recognition = new SpeechRecognition();
-            recognition.lang = 'es-ES';
-            recognition.continuous = true;  // Grabación continua
-            recognition.interimResults = true;  // Mostrar resultados intermedios
-            recognition.maxAlternatives = 1;
-
-            startBtn.onclick = function() {
-                if (!isRecording) {
-                    finalTranscript = '';
-                    recognition.start();
-                    isRecording = true;
-                    status.textContent = '🎤 Grabando... Habla ahora';
-                    startBtn.style.display = 'none';
-                    stopBtn.style.display = 'inline-block';
-                    transcriptBox.style.display = 'block';
-                    transcript.textContent = 'Esperando tu voz...';
-                }
-            };
-
-            stopBtn.onclick = function() {
-                if (isRecording) {
-                    recognition.stop();
-                    isRecording = false;
-                }
-            };
-
-            recognition.onresult = function(event) {
-                let interimTranscript = '';
-
-                for (let i = event.resultIndex; i < event.results.length; i++) {
-                    const transcriptText = event.results[i][0].transcript;
-                    if (event.results[i].isFinal) {
-                        finalTranscript += transcriptText + ' ';
-                    } else {
-                        interimTranscript += transcriptText;
-                    }
-                }
-
-                transcript.textContent = finalTranscript + interimTranscript;
-                transcriptValue.value = finalTranscript;
-
-                // Enviar a Streamlit
-                window.parent.postMessage({
-                    type: 'streamlit:setComponentValue',
-                    value: finalTranscript.trim()
-                }, '*');
-            };
-
-            recognition.onerror = function(event) {
-                if (event.error === 'no-speech') {
-                    status.textContent = '⚠️ No se detectó voz. Intenta de nuevo.';
-                } else if (event.error === 'aborted') {
-                    status.textContent = '✅ Grabación detenida';
-                } else {
-                    status.textContent = '❌ Error: ' + event.error;
-                }
-                isRecording = false;
-                startBtn.style.display = 'inline-block';
-                stopBtn.style.display = 'none';
-            };
-
-            recognition.onend = function() {
-                if (isRecording) {
-                    // Si se detuvo automáticamente pero queríamos seguir, reiniciar
-                    recognition.start();
-                } else {
-                    status.textContent = '✅ Grabación completada: ' + finalTranscript;
-                    startBtn.style.display = 'inline-block';
-                    stopBtn.style.display = 'none';
-                    startBtn.textContent = '🎤 Grabar otra vez';
-                }
-            };
-        } else {
-            status.textContent = '❌ Tu navegador no soporta reconocimiento de voz. Usa Chrome, Edge o Safari.';
-            startBtn.disabled = true;
-        }
-    </script>
-    """
-    return components.html(voice_html, height=250)
-
-# Inicializar estado de sesión
+# Inicializar estados de sesión
 if "document_loaded" not in st.session_state:
     st.session_state.document_loaded = False
 if "document_content" not in st.session_state:
@@ -263,6 +152,8 @@ if "current_evaluation" not in st.session_state:
     st.session_state.current_evaluation = None
 if "voice_transcript" not in st.session_state:
     st.session_state.voice_transcript = ""
+if "recording_active" not in st.session_state:
+    st.session_state.recording_active = False
 
 # Header
 st.markdown('<div class="main-header">🎓 Profesor Virtual con IA 🤖</div>', unsafe_allow_html=True)
@@ -314,6 +205,7 @@ with st.sidebar:
             st.session_state.total_score = 0
             st.session_state.show_evaluation = False
             st.session_state.current_evaluation = None
+            st.session_state.voice_transcript = ""
             st.rerun()
 
     st.markdown("---")
@@ -328,21 +220,24 @@ with col1:
     st.header("📄 Paso 1: Cargar Documento")
 
     st.info("""
-    Sube un documento (PDF, TXT o DOCX) con el contenido que deseas estudiar.
-    El profesor virtual generará preguntas basadas en este documento.
+    Sube un documento con el contenido que deseas estudiar.
+    **Formatos soportados:** PDF, TXT, DOCX, PPTX, HTML y archivos de código (Python, JavaScript, Java, etc.)
     """)
+
+    # Obtener extensiones soportadas
+    loader = DocumentLoader()
+    supported_extensions = loader.get_supported_extensions()
 
     uploaded_file = st.file_uploader(
         "Selecciona un archivo",
-        type=["pdf", "txt", "docx"],
-        help="Formatos soportados: PDF, TXT, DOCX"
+        type=supported_extensions,
+        help=f"Formatos soportados: {', '.join(supported_extensions[:10])}... y más"
     )
 
     if uploaded_file:
         if not st.session_state.document_loaded:
             with st.spinner("📖 Cargando documento..."):
                 try:
-                    loader = DocumentLoader()
                     content = loader.load_document(uploaded_file, uploaded_file.name)
 
                     if loader.validate_document_length(content):
@@ -355,8 +250,8 @@ with col1:
                         with st.expander("👁️ Ver contenido del documento"):
                             st.text_area(
                                 "Contenido",
-                                content[:1000] + "..." if len(content) > 1000 else content,
-                                height=200,
+                                content[:1500] + "..." if len(content) > 1500 else content,
+                                height=250,
                                 disabled=True
                             )
                     else:
@@ -393,6 +288,7 @@ with col2:
                 st.session_state.evaluation_history = []
                 st.session_state.show_evaluation = False
                 st.session_state.current_evaluation = None
+                st.session_state.voice_transcript = ""
                 st.rerun()
     else:
         st.warning("⚠️ Primero debes cargar un documento")
@@ -461,6 +357,7 @@ if st.session_state.questions:
                     st.session_state.current_question_index += 1
                     st.session_state.show_evaluation = False
                     st.session_state.current_evaluation = None
+                    st.session_state.voice_transcript = ""  # Limpiar transcripción
                     st.rerun()
 
         else:
@@ -506,20 +403,119 @@ if st.session_state.questions:
                         st.warning("⚠️ Por favor, escribe una respuesta")
 
             with tab2:
-                st.info("🎤 **Instrucciones:** Presiona 'Mantén presionado para hablar', habla tu respuesta completa, y luego presiona 'Detener' cuando termines.")
+                st.info("🎤 **Instrucciones:**\n1. Presiona 'Iniciar grabación'\n2. Habla tu respuesta completa\n3. Presiona 'Detener grabación'\n4. Revisa el texto capturado abajo\n5. Edita si es necesario y envía")
 
-                # Componente de voz mejorado
-                voice_result = get_voice_input_component()
+                # Componente de voz simplificado con mejor sincronización
+                voice_component_html = """
+                <div style="text-align: center; padding: 15px; background-color: #f8f9fa; border-radius: 8px;">
+                    <button id="startBtn" style="padding: 12px 24px; font-size: 16px; background-color: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; margin: 5px;">
+                        🎤 Iniciar grabación
+                    </button>
+                    <button id="stopBtn" style="padding: 12px 24px; font-size: 16px; background-color: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer; margin: 5px; display: none;">
+                        ⏹️ Detener grabación
+                    </button>
+                    <p id="status" style="margin-top: 10px; font-size: 14px; color: #666;"></p>
+                    <div id="transcriptBox" style="margin-top: 15px; padding: 15px; background-color: #e3f2fd; border-radius: 8px; min-height: 80px; max-height: 150px; overflow-y: auto; display: none; text-align: left;">
+                        <strong style="color: #1976d2;">Transcripción en tiempo real:</strong>
+                        <p id="transcript" style="font-size: 16px; color: #1a1a1a; margin-top: 5px; white-space: pre-wrap;"></p>
+                    </div>
+                </div>
+                <script>
+                    const startBtn = document.getElementById('startBtn');
+                    const stopBtn = document.getElementById('stopBtn');
+                    const status = document.getElementById('status');
+                    const transcript = document.getElementById('transcript');
+                    const transcriptBox = document.getElementById('transcriptBox');
+
+                    let recognition = null;
+                    let finalTranscript = '';
+                    let isRecording = false;
+
+                    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                        recognition = new SpeechRecognition();
+                        recognition.lang = 'es-ES';
+                        recognition.continuous = true;
+                        recognition.interimResults = true;
+
+                        startBtn.onclick = function() {
+                            if (!isRecording) {
+                                finalTranscript = '';
+                                transcript.textContent = '';
+                                recognition.start();
+                                isRecording = true;
+                                status.textContent = '🎤 Grabando... Habla ahora';
+                                status.style.color = '#dc3545';
+                                startBtn.style.display = 'none';
+                                stopBtn.style.display = 'inline-block';
+                                transcriptBox.style.display = 'block';
+                            }
+                        };
+
+                        stopBtn.onclick = function() {
+                            if (isRecording) {
+                                recognition.stop();
+                                isRecording = false;
+                                status.textContent = '✅ Grabación completada. Copia el texto abajo para editarlo.';
+                                status.style.color = '#28a745';
+                                startBtn.style.display = 'inline-block';
+                                stopBtn.style.display = 'none';
+                            }
+                        };
+
+                        recognition.onresult = function(event) {
+                            let interimTranscript = '';
+
+                            for (let i = event.resultIndex; i < event.results.length; i++) {
+                                const transcriptText = event.results[i][0].transcript;
+                                if (event.results[i].isFinal) {
+                                    finalTranscript += transcriptText + ' ';
+                                } else {
+                                    interimTranscript += transcriptText;
+                                }
+                            }
+
+                            transcript.textContent = finalTranscript + interimTranscript;
+                        };
+
+                        recognition.onerror = function(event) {
+                            if (event.error === 'no-speech') {
+                                status.textContent = '⚠️ No se detectó voz. Intenta de nuevo.';
+                            } else if (event.error === 'aborted') {
+                                status.textContent = '✅ Grabación detenida';
+                            } else {
+                                status.textContent = '❌ Error: ' + event.error;
+                            }
+                            status.style.color = '#dc3545';
+                            isRecording = false;
+                            startBtn.style.display = 'inline-block';
+                            stopBtn.style.display = 'none';
+                        };
+
+                        recognition.onend = function() {
+                            if (isRecording) {
+                                recognition.start();
+                            }
+                        };
+                    } else {
+                        status.textContent = '❌ Tu navegador no soporta reconocimiento de voz. Usa Chrome, Edge o Safari.';
+                        status.style.color = '#dc3545';
+                        startBtn.disabled = true;
+                    }
+                </script>
+                """
+                components.html(voice_component_html, height=300)
 
                 st.markdown("---")
-                st.markdown("**Revisa y edita tu respuesta capturada:**")
+                st.markdown("**📝 Copia y pega tu respuesta desde el cuadro azul de arriba:**")
 
+                # Campo de texto para la respuesta por voz
                 voice_answer = st.text_area(
-                    "Tu respuesta por voz:",
+                    "Tu respuesta por voz (copia el texto del cuadro azul aquí):",
                     height=120,
                     key=f"voice_answer_{current_idx}",
-                    placeholder="Tu respuesta por voz aparecerá aquí. Puedes editarla antes de enviar.",
-                    value=st.session_state.get("voice_transcript", "")
+                    placeholder="Copia aquí el texto capturado de arriba. Puedes editarlo antes de enviar.",
+                    help="Después de grabar, copia el texto del cuadro azul y pégalo aquí. Puedes editarlo antes de enviar."
                 )
 
                 if st.button("📤 Enviar respuesta por voz", use_container_width=True, key=f"submit_voice_{current_idx}"):
@@ -550,7 +546,7 @@ if st.session_state.questions:
                             except Exception as e:
                                 st.error(f"❌ Error al evaluar: {str(e)}")
                     else:
-                        st.warning("⚠️ Por favor, graba tu respuesta o escríbela manualmente en el cuadro de texto")
+                        st.warning("⚠️ Por favor, copia tu respuesta grabada en el campo de texto")
 
     else:
         # Completado
@@ -598,5 +594,8 @@ st.markdown("""
 <div style="text-align: center; color: #666; padding: 2rem;">
     <p><strong>Profesor Virtual con IA</strong> - Desarrollado con Streamlit y OpenAI GPT-4</p>
     <p>Ing. Jorge Quintero | lucho19q@gmail.com</p>
+    <p style="font-size: 0.9rem; margin-top: 0.5rem;">
+        Formatos soportados: PDF, TXT, DOCX, PPTX, HTML, Python, JavaScript, Java, C++, y más
+    </p>
 </div>
 """, unsafe_allow_html=True)
