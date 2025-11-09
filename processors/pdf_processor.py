@@ -1,14 +1,18 @@
 """
-Procesador de documentos PDF
+Procesador de documentos PDF con OCR avanzado
 Extrae texto y estructura del documento
-Incluye OCR para PDFs con imágenes
+Incluye OCR mejorado para PDFs con imágenes
 """
 import PyPDF2
 import pdfplumber
 from typing import Dict, List
 from pdf2image import convert_from_path
 import pytesseract
+import cv2
+import numpy as np
+from PIL import Image
 import os
+import re
 
 class PDFProcessor:
     """Procesa archivos PDF y extrae contenido estructurado"""
@@ -28,12 +32,105 @@ class PDFProcessor:
                     pytesseract.pytesseract.tesseract_cmd = path
                     break
 
-    def extract_text_with_ocr(self, pdf_path: str) -> Dict[str, any]:
+        # Configuraciones de Tesseract para PDFs
+        self.psm_modes = [3, 6, 4]  # Mejores modos para documentos PDF
+
+    def preprocess_pdf_image(self, pil_image: Image.Image) -> List[tuple]:
         """
-        Extrae texto de PDF usando OCR (para PDFs con imágenes)
+        Preprocesa una imagen de página PDF con múltiples técnicas
+
+        Args:
+            pil_image: Imagen PIL de la página PDF
+
+        Returns:
+            Lista de tuplas (nombre_método, imagen_procesada)
+        """
+        # Convertir PIL a numpy array
+        img_array = np.array(pil_image)
+
+        # Convertir RGB a BGR para OpenCV
+        if len(img_array.shape) == 3 and img_array.shape[2] == 3:
+            img_bgr = cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR)
+        else:
+            img_bgr = img_array
+
+        processed_images = []
+
+        # Convertir a escala de grises
+        if len(img_bgr.shape) == 3:
+            gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
+        else:
+            gray = img_bgr
+
+        # Técnica 1: Alta resolución + Otsu
+        try:
+            _, binary_otsu = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            processed_images.append(('otsu', Image.fromarray(binary_otsu)))
+        except:
+            pass
+
+        # Técnica 2: Eliminación de ruido + binarización
+        try:
+            denoised = cv2.fastNlMeansDenoising(gray, None, 10, 7, 21)
+            _, binary_denoised = cv2.threshold(denoised, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            processed_images.append(('denoised', Image.fromarray(binary_denoised)))
+        except:
+            pass
+
+        # Técnica 3: Aumento de contraste
+        try:
+            equalized = cv2.equalizeHist(gray)
+            _, binary_eq = cv2.threshold(equalized, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            processed_images.append(('equalized', Image.fromarray(binary_eq)))
+        except:
+            pass
+
+        # Técnica 4: Adaptativo gaussiano
+        try:
+            adaptive = cv2.adaptiveThreshold(
+                gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
+            )
+            processed_images.append(('adaptive', Image.fromarray(adaptive)))
+        except:
+            pass
+
+        return processed_images
+
+    def clean_ocr_text(self, text: str) -> str:
+        """
+        Limpia el texto extraído por OCR
+
+        Args:
+            text: Texto crudo del OCR
+
+        Returns:
+            Texto limpio
+        """
+        if not text:
+            return ""
+
+        # Eliminar espacios múltiples
+        text = re.sub(r' +', ' ', text)
+
+        # Eliminar líneas vacías múltiples
+        text = re.sub(r'\n\s*\n', '\n\n', text)
+
+        # Corregir puntuación mal espaciada
+        text = re.sub(r'\s+([.,;:!?])', r'\1', text)
+
+        # Eliminar caracteres extraños comunes
+        text = text.replace('|', 'I')
+        text = text.replace('°', 'o')
+
+        return text.strip()
+
+    def extract_text_with_ocr(self, pdf_path: str, use_advanced: bool = True) -> Dict[str, any]:
+        """
+        Extrae texto de PDF usando OCR avanzado con múltiples técnicas
 
         Args:
             pdf_path: Ruta al archivo PDF
+            use_advanced: Si True, usa preprocesamiento avanzado
 
         Returns:
             Dict con texto extraído mediante OCR
@@ -54,37 +151,76 @@ class PDFProcessor:
                         print(f"  [OCR] Usando Poppler desde: {poppler_path}")
                         break
 
-            print(f"  [OCR] Convirtiendo PDF a imágenes...")
-            # Convertir PDF a imágenes
+            print(f"  [OCR] Convirtiendo PDF a imágenes de alta resolución (DPI=400)...")
+            # Convertir PDF a imágenes con mayor DPI para mejor calidad
             if poppler_path:
-                images = convert_from_path(pdf_path, dpi=300, poppler_path=poppler_path)
+                images = convert_from_path(pdf_path, dpi=400, poppler_path=poppler_path)
             else:
-                images = convert_from_path(pdf_path, dpi=300)
+                images = convert_from_path(pdf_path, dpi=400)
 
             pages_content = []
             full_text = ""
 
-            print(f"  [OCR] Procesando {len(images)} páginas con OCR...")
+            print(f"  [OCR] Procesando {len(images)} páginas con OCR avanzado...")
             for i, image in enumerate(images):
-                # Extraer texto con OCR (español e inglés)
-                page_text = pytesseract.image_to_string(image, lang='spa+eng')
+                best_text = ""
+                best_method = "basic"
 
-                if page_text and len(page_text.strip()) > 10:
+                if use_advanced:
+                    # Probar OCR básico primero
+                    try:
+                        basic_text = pytesseract.image_to_string(image, lang='spa+eng')
+                        if basic_text and len(basic_text.strip()) > len(best_text):
+                            best_text = basic_text
+                            best_method = "basic"
+                    except:
+                        pass
+
+                    # Probar con preprocesamiento avanzado
+                    processed_images = self.preprocess_pdf_image(image)
+
+                    for method_name, processed_img in processed_images:
+                        for psm_mode in self.psm_modes:
+                            try:
+                                custom_config = f'--psm {psm_mode} --oem 3'
+                                text = pytesseract.image_to_string(
+                                    processed_img, lang='spa+eng', config=custom_config
+                                )
+
+                                # Seleccionar mejor resultado
+                                if text and len(text.strip()) > len(best_text.strip()):
+                                    words = text.split()
+                                    if len(words) > 5:  # Contenido significativo
+                                        best_text = text
+                                        best_method = f"{method_name}_psm{psm_mode}"
+                            except:
+                                continue
+                else:
+                    # OCR básico sin preprocesamiento
+                    best_text = pytesseract.image_to_string(image, lang='spa+eng')
+                    best_method = "basic"
+
+                # Limpiar texto
+                best_text = self.clean_ocr_text(best_text)
+
+                if best_text and len(best_text.strip()) > 10:
                     pages_content.append({
                         'page_number': i + 1,
-                        'text': page_text,
+                        'text': best_text,
                         'has_tables': False,
-                        'extracted_with': 'OCR'
+                        'extracted_with': f'OCR_{best_method}'
                     })
-                    full_text += f"\n--- Página {i + 1} (OCR) ---\n{page_text}"
-                    print(f"  [OCR] Página {i + 1}: {len(page_text)} caracteres extraídos")
+                    full_text += f"\n--- Página {i + 1} (OCR) ---\n{best_text}"
+                    print(f"  [OCR] Página {i + 1}: {len(best_text)} caracteres extraídos (método: {best_method})")
+
+            print(f"  [OCR] ✓ Extracción completa: {len(full_text)} caracteres totales")
 
             return {
                 'success': True,
                 'full_text': full_text,
                 'pages': pages_content,
                 'total_pages': len(images),
-                'metadata': {'extraction_method': 'OCR'}
+                'metadata': {'extraction_method': 'OCR_Advanced'}
             }
 
         except Exception as e:
@@ -236,32 +372,79 @@ class PDFProcessor:
 
         return code_blocks
 
-    def process(self, pdf_path: str) -> Dict:
+    def process(self, pdf_path: str, force_ocr: bool = False) -> Dict:
         """
-        Procesa completamente un PDF extrayendo texto, secciones y código
-        Si el PDF tiene poco texto, intenta OCR automáticamente
+        Procesa completamente un PDF con detección inteligente de método de extracción
 
         Args:
             pdf_path: Ruta al archivo PDF
+            force_ocr: Si True, fuerza el uso de OCR sin intentar extracción normal
 
         Returns:
             Dict con todo el contenido procesado
         """
-        print(f"\n[PDF] Procesando: {pdf_path}")
+        print(f"\n[PDF] Procesando con OCR avanzado: {pdf_path}")
 
-        # MODO DEBUG: SIEMPRE usar OCR primero para PDFs con imágenes
-        print(f"[PDF] 🔍 MODO DEBUG: Intentando OCR primero...")
-        ocr_result = self.extract_text_with_ocr(pdf_path)
+        full_text = ""
+        extraction_result = None
 
-        if ocr_result['success']:
-            ocr_text_length = len(ocr_result.get('full_text', ''))
-            print(f"[PDF] ✓ OCR exitoso: {ocr_text_length} caracteres extraídos")
-            extraction_result = ocr_result
-            full_text = ocr_result['full_text']
-        else:
-            print(f"[PDF] ✗ OCR falló, intentando extracción normal...")
-            extraction_result = self.extract_text(pdf_path)
+        if force_ocr:
+            # Forzar OCR directamente
+            print(f"[PDF] Usando OCR avanzado (forzado)...")
+            extraction_result = self.extract_text_with_ocr(pdf_path, use_advanced=True)
             full_text = extraction_result.get('full_text', '')
+        else:
+            # Intentar extracción normal primero
+            print(f"[PDF] Intentando extracción de texto normal...")
+            normal_result = self.extract_text(pdf_path)
+
+            if normal_result['success']:
+                normal_text = normal_result.get('full_text', '').strip()
+                normal_length = len(normal_text)
+
+                # Determinar si el texto extraído es suficiente
+                if normal_length > 100:
+                    print(f"[PDF] ✓ Texto nativo encontrado: {normal_length} caracteres")
+                    extraction_result = normal_result
+                    full_text = normal_text
+                else:
+                    print(f"[PDF] ⚠ Poco texto nativo ({normal_length} caracteres), probando OCR...")
+                    ocr_result = self.extract_text_with_ocr(pdf_path, use_advanced=True)
+
+                    if ocr_result['success']:
+                        ocr_text = ocr_result.get('full_text', '').strip()
+                        ocr_length = len(ocr_text)
+
+                        # Comparar resultados y elegir el mejor
+                        if ocr_length > normal_length * 1.5:  # OCR dio al menos 50% más texto
+                            print(f"[PDF] ✓ OCR mejor resultado: {ocr_length} caracteres vs {normal_length}")
+                            extraction_result = ocr_result
+                            full_text = ocr_text
+                        else:
+                            print(f"[PDF] ✓ Usando texto nativo: {normal_length} caracteres")
+                            extraction_result = normal_result
+                            full_text = normal_text
+                    else:
+                        print(f"[PDF] ⚠ OCR falló, usando texto nativo")
+                        extraction_result = normal_result
+                        full_text = normal_text
+            else:
+                # Extracción normal falló, intentar OCR
+                print(f"[PDF] ✗ Extracción normal falló, usando OCR...")
+                extraction_result = self.extract_text_with_ocr(pdf_path, use_advanced=True)
+                full_text = extraction_result.get('full_text', '')
+
+        if not extraction_result or not extraction_result.get('success', False):
+            return {
+                'success': False,
+                'error': 'No se pudo extraer texto del PDF',
+                'full_text': '',
+                'sections': {},
+                'code_blocks': [],
+                'pages': [],
+                'total_pages': 0,
+                'metadata': {}
+            }
 
         # Procesar secciones
         sections = self.extract_sections(full_text)
@@ -269,7 +452,7 @@ class PDFProcessor:
         # Extraer código
         code_blocks = self.extract_code_blocks(full_text)
 
-        print(f"[PDF] ✓ Procesado: {len(full_text)} caracteres totales")
+        print(f"[PDF] ✓ Procesado completo: {len(full_text)} caracteres, {len(sections)} secciones, {len(code_blocks)} bloques de código")
 
         return {
             'success': True,
