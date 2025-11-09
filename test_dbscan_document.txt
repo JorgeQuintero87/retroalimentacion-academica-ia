@@ -1,0 +1,149 @@
+# Ejercicio 2: DBSCAN - Algoritmo de Clustering Basado en Densidad
+
+## Dataset 1: Bodyfat
+## Dataset 2: Diabetes
+
+### Selección de Variables
+
+from sklearn.preprocessing import StandardScaler
+
+# Selección de variables para DBSCAN
+vars_bodyfat_dbscan = ["Weight", "Abdomen", "Density"]
+vars_diabetes_dbscan = ["plas", "mass", "age"]
+
+# Subconjuntos de datos
+X_bodyfat_dbscan = df_bodyfat[vars_bodyfat_dbscan]
+X_diabetes_dbscan = df_diabetes[vars_diabetes_dbscan]
+
+# Escalado de datos
+scaler = StandardScaler()
+X_bodyfat_scaled = scaler.fit_transform(X_bodyfat_dbscan)
+X_diabetes_scaled = scaler.fit_transform(X_diabetes_dbscan)
+
+print("Variables seleccionadas para DBSCAN - Bodyfat:", vars_bodyfat_dbscan)
+print("Shape Bodyfat escalado:", X_bodyfat_scaled.shape)
+
+print("\nVariables seleccionadas para DBSCAN - Diabetes:", vars_diabetes_dbscan)
+print("Shape Diabetes escalado:", X_diabetes_scaled.shape)
+
+### Determinación de Epsilon usando K-Distance Plot
+
+from sklearn.neighbors import NearestNeighbors
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Función para graficar distancias k-vecinos y apoyar la selección de ε
+def graficar_kdistancias(X, dataset_name, k=5):
+    nn = NearestNeighbors(n_neighbors=k)
+    nn.fit(X)
+    distancias, _ = nn.kneighbors(X)
+    distancias = np.sort(distancias[:, k-1])
+
+    plt.figure(figsize=(7,5))
+    plt.plot(distancias)
+    plt.title(f'Gráfico k-distancias ({k}-vecinos) - {dataset_name}')
+    plt.xlabel('Puntos ordenados')
+    plt.ylabel(f'Distancia al {k}º vecino más cercano')
+    plt.show()
+
+# Determinación de ε para Bodyfat
+graficar_kdistancias(X_bodyfat_scaled, "Bodyfat", k=5)
+
+# Determinación de ε para Diabetes
+graficar_kdistancias(X_diabetes_scaled, "Diabetes", k=5)
+
+### Aplicación de DBSCAN
+
+from sklearn.cluster import DBSCAN
+
+# Función para aplicar DBSCAN y contar clústeres
+def aplicar_dbscan(X, eps, min_samples, dataset_name):
+    db = DBSCAN(eps=eps, min_samples=min_samples)
+    labels = db.fit_predict(X)
+
+    n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
+    n_outliers = list(labels).count(-1)
+
+    print(f"Dataset: {dataset_name}")
+    print(f"Número de clústeres encontrados: {n_clusters}")
+    print(f"Número de outliers: {n_outliers}")
+    return labels
+
+# Aplicar DBSCAN con parámetros estimados tras el k-distance plot
+# Para Bodyfat, tras analizar el gráfico, seleccionamos eps=0.5
+# Para Diabetes, tras analizar el gráfico, seleccionamos eps=0.5
+# En ambos casos, min_samples=5 (valor recomendado para datasets medianos)
+
+labels_bodyfat = aplicar_dbscan(X_bodyfat_scaled, eps=0.5, min_samples=5, dataset_name="Bodyfat")
+labels_diabetes = aplicar_dbscan(X_diabetes_scaled, eps=0.5, min_samples=5, dataset_name="Diabetes")
+
+### Resultados Bodyfat
+Dataset: Bodyfat
+Número de clústeres encontrados: 3
+Número de outliers: 12
+
+### Resultados Diabetes
+Dataset: Diabetes
+Número de clústeres encontrados: 2
+Número de outliers: 45
+
+### Justificación de Parámetros
+
+**Epsilon (ε)**: Se seleccionó 0.5 para ambos datasets después de analizar los gráficos k-distance.
+Este valor representa el punto donde la curva comienza a elevarse significativamente (el "codo"),
+indicando la distancia máxima entre dos puntos para ser considerados vecinos.
+
+**Min_samples**: Se seleccionó 5 como valor mínimo de puntos para formar un cluster denso.
+Este es un valor estándar para datasets de tamaño mediano y permite identificar clusters
+significativos sin ser demasiado restrictivo.
+
+### Visualización de Resultados
+
+import matplotlib.pyplot as plt
+
+def graficar_dbscan(X, labels, dataset_name, vars_selected):
+    plt.figure(figsize=(8,6))
+    unique_labels = set(labels)
+    colors = plt.cm.tab10.colors
+
+    for k in unique_labels:
+        if k == -1:
+            # Outliers
+            col = "black"
+            label = "Outliers"
+        else:
+            col = colors[k % len(colors)]
+            label = f"Clúster {k}"
+        plt.scatter(X[:,0][labels==k], X[:,1][labels==k],
+                    c=[col], label=label, s=40, alpha=0.7)
+
+    plt.title(f"DBSCAN - {dataset_name}\nVariables: {vars_selected}")
+    plt.xlabel(vars_selected[0])
+    plt.ylabel(vars_selected[1])
+    plt.legend()
+    plt.show()
+
+# Graficar resultados para Bodyfat
+graficar_dbscan(X_bodyfat_scaled, labels_bodyfat, "Bodyfat", vars_bodyfat_dbscan[:2])
+
+# Graficar resultados para Diabetes
+graficar_dbscan(X_diabetes_scaled, labels_diabetes, "Diabetes", vars_diabetes_dbscan[:2])
+
+### Descripción de Perfiles de Clusters
+
+**Dataset Bodyfat:**
+- Cluster 0: Personas con peso moderado y abdomen promedio
+- Cluster 1: Personas con mayor peso y abdomen más grande
+- Cluster 2: Personas con menor peso y abdomen reducido
+- Outliers (ruido): 12 individuos con características atípicas
+
+**Dataset Diabetes:**
+- Cluster 0: Pacientes con valores moderados de glucosa y masa corporal
+- Cluster 1: Pacientes con valores elevados de glucosa y masa corporal alta
+- Outliers (ruido): 45 pacientes con perfiles atípicos que requieren atención especial
+
+### Conclusiones
+
+El algoritmo DBSCAN permitió identificar patrones de agrupamiento basados en densidad
+en ambos datasets. La identificación de outliers es particularmente valiosa para
+detectar casos anómalos que pueden requerir análisis adicional.

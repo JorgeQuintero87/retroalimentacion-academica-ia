@@ -13,6 +13,8 @@ from processors.image_processor import ImageProcessor
 from processors.notebook_processor import NotebookProcessor
 from vector_store.pinecone_manager import PineconeManager
 from feedback.gpt_feedback import GPTFeedbackGenerator
+from feedback.phase_validator import PhaseValidator
+from feedback.document_type_validator import DocumentTypeValidator
 
 # Configuración de la página
 st.set_page_config(
@@ -54,6 +56,7 @@ def load_available_courses():
     # Configuración de cursos
     course_configs = {
         'machine_learning': 'rubrica_estructurada.json',
+        'machine_learning_fase3': 'rubrica_estructurada.json',
         'big_data_integration': 'rubrica_estructurada.json'
     }
 
@@ -378,6 +381,94 @@ def main():
                     st.stop()
 
                 st.success(f"✓ Documento procesado: {len(content)} caracteres extraídos")
+
+                # VALIDACIÓN 1: Tipo de Documento - Prevenir calificar guías/instrucciones
+                with st.spinner("🔍 Validando que el documento sea una entrega del estudiante..."):
+                    type_validator = DocumentTypeValidator()
+                    type_result = type_validator.validate_is_student_work(content)
+
+                    # Mostrar resultado de validación de tipo
+                    if type_result['is_student_work']:
+                        st.success("✓ Documento validado: Es una entrega de estudiante")
+                    else:
+                        # Si NO es trabajo del estudiante, BLOQUEAR
+                        confidence = type_result['confidence']
+
+                        if confidence in ['alta', 'media']:
+                            # Confianza alta/media: BLOQUEAR
+                            st.error("❌ " + type_result['recommendation'])
+
+                            # Mostrar explicación detallada
+                            with st.expander("📋 Ver detalles de validación", expanded=True):
+                                st.write("**Explicación:**")
+                                st.write(type_result['explanation'])
+
+                                st.write(f"**Tipo de documento detectado:** `{type_result['document_type']}`")
+                                st.write(f"**Confianza:** `{type_result['confidence']}`")
+
+                                col1, col2 = st.columns(2)
+
+                                with col1:
+                                    st.write("**📖 Evidencias de que es GUÍA/INSTRUCCIONES:**")
+                                    for evidence in type_result['evidence_guide']:
+                                        st.markdown(f"- {evidence}")
+
+                                with col2:
+                                    st.write("**📝 Evidencias de que es TRABAJO del estudiante:**")
+                                    if type_result['evidence_student_work']:
+                                        for evidence in type_result['evidence_student_work']:
+                                            st.markdown(f"- {evidence}")
+                                    else:
+                                        st.markdown("- *(Ninguna evidencia encontrada)*")
+
+                            st.warning("⚠️ **La evaluación ha sido bloqueada.** Este documento parece ser una guía de actividad o instrucciones, NO una entrega real del estudiante. Por favor, suba el trabajo desarrollado por el estudiante.")
+                            st.stop()  # Detener ejecución
+                        else:
+                            # Confianza baja: ADVERTENCIA pero permitir continuar
+                            st.warning("⚠️ " + type_result['recommendation'])
+
+                # VALIDACIÓN 2: Fase - Prevenir evaluación cruzada
+                with st.spinner("🔍 Validando correspondencia con la fase seleccionada..."):
+                    validator = PhaseValidator()
+                    validation_result = validator.validate_document_phase(content, rubric_data)
+
+                    # Mostrar resultado de validación
+                    if validation_result['is_valid']:
+                        st.success(validation_result['recommendation'])
+                    else:
+                        # Si NO es válido, mostrar advertencia/error según confianza
+                        confidence = validation_result['confidence']
+
+                        if confidence in ['alta', 'media']:
+                            # Confianza alta/media: BLOQUEAR evaluación
+                            st.error(validation_result['recommendation'])
+
+                            # Mostrar explicación detallada
+                            with st.expander("📋 Ver detalles de validación", expanded=True):
+                                st.write("**Explicación:**")
+                                st.write(validation_result['explanation'])
+
+                                col1, col2 = st.columns(2)
+
+                                with col1:
+                                    st.write("**🎯 Temas esperados para esta fase:**")
+                                    for topic in validation_result['expected_topics'][:5]:
+                                        st.markdown(f"- {topic}")
+
+                                with col2:
+                                    st.write("**📝 Temas encontrados en el documento:**")
+                                    for topic in validation_result['found_topics']:
+                                        st.markdown(f"- {topic}")
+
+                                if validation_result['phase_mismatch']:
+                                    st.info(f"💡 **Sugerencia**: Este documento parece corresponder a **'{validation_result['phase_mismatch']}'**. Por favor, selecciona esa fase en lugar de '{rubric_data.get('fase', 'esta fase')}'.")
+
+                            st.warning("⚠️ **La evaluación ha sido bloqueada para evitar resultados incorrectos.** Por favor, verifica que hayas seleccionado la fase correcta que corresponde a tu documento.")
+                            st.stop()  # Detener ejecución
+                        else:
+                            # Confianza baja: ADVERTENCIA pero permitir continuar
+                            st.warning(validation_result['recommendation'])
+                            st.info("⚠️ La validación tiene confianza baja. Procede con precaución. Si sabes que el documento corresponde a esta fase, puedes continuar con la evaluación.")
 
                 # Buscar secciones relevantes en Pinecone (opcional)
                 with st.spinner("Analizando relevancia con rúbrica..."):

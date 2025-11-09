@@ -7,6 +7,7 @@ import json
 import os
 from typing import Dict, List
 from dotenv import load_dotenv
+from pathlib import Path
 
 load_dotenv()
 
@@ -18,10 +19,11 @@ class GPTFeedbackGenerator:
         self.openai_api_key = os.getenv('OPENAI_API_KEY')
         self.client = OpenAI(api_key=self.openai_api_key)
         self.model = "gpt-4o-mini"  # Opciones: gpt-4o-mini (barato), gpt-4o (mejor calidad)
+        self.condiciones_cache = {}  # Cache para condiciones.json
 
     def generate_criterion_feedback(self, criterion: Dict, document_content: str,
                                     course_name: str, detected_criterion: int = None,
-                                    exercises_in_document: list = None) -> Dict:
+                                    exercises_in_document: list = None, condiciones: Dict = None) -> Dict:
         """
         Genera retroalimentación para un criterio específico (NUEVA ESTRUCTURA)
         ACTUALIZADO: Primero verifica si el criterio está presente en el documento
@@ -49,7 +51,7 @@ class GPTFeedbackGenerator:
             else:
                 exercises_in_doc = exercises_in_document
 
-            print(f"  📝 Evaluando con ejercicios detectados: {exercises_in_doc}")
+            print(f"  [EJERCICIOS] Evaluando con ejercicios detectados: {exercises_in_doc}")
 
             # NUEVA VALIDACIÓN: Verificar si el criterio está presente en el documento
             # El nombre del archivo es solo una PISTA, NO es definitivo
@@ -83,7 +85,34 @@ class GPTFeedbackGenerator:
             # Información de ejercicios detectados
             exercises_info = ""
             if len(exercises_in_doc) > 0:
-                exercises_info = f"\n\n⚠️ EJERCICIOS DETECTADOS EN EL DOCUMENTO: {exercises_in_doc}\nEsto significa que el estudiante menciona explícitamente estos ejercicios."
+                exercises_info = f"\n\n[WARN] EJERCICIOS DETECTADOS EN EL DOCUMENTO: {exercises_in_doc}\nEsto significa que el estudiante menciona explícitamente estos ejercicios."
+
+            # NUEVO: Obtener tareas detalladas si existen condiciones
+            detailed_tasks_info = ""
+            if condiciones:
+                task_details = self._get_detailed_tasks_for_criterion(criterion_number, condiciones)
+                tasks = task_details.get('tasks', [])
+                deliverables = task_details.get('deliverables', [])
+
+                if tasks:
+                    tasks_text = "\n".join([f"  {i+1}. {task}" for i, task in enumerate(tasks)])
+                    detailed_tasks_info += f"\n\n📋 TAREAS ESPECÍFICAS QUE EL ESTUDIANTE DEBE REALIZAR:\n{tasks_text}"
+
+                if deliverables:
+                    deliverables_text = "\n".join([f"  - {d}" for d in deliverables])
+                    detailed_tasks_info += f"\n\n📦 ENTREGABLES ESPERADOS:\n{deliverables_text}"
+
+                if tasks or deliverables:
+                    detailed_tasks_info += "\n\n[WARN] IMPORTANTE: Verifica PUNTO POR PUNTO si el estudiante cumplió CADA tarea y entregó CADA entregable."
+
+            # Detectar el tipo de criterio para dar instrucciones específicas
+            criterion_type_hint = ""
+            if 'dbscan' in criterion_name.lower():
+                criterion_type_hint = "\n\n**IMPORTANTE**: Este criterio evalúa DBSCAN (clustering basado en densidad), NO K-Means ni otros algoritmos. Busca específicamente: DBSCAN(), eps, min_samples, outliers, noise."
+            elif 'k-mean' in criterion_name.lower() or 'kmean' in criterion_name.lower():
+                criterion_type_hint = "\n\n**IMPORTANTE**: Este criterio evalúa K-Means, NO DBSCAN ni otros algoritmos. Busca específicamente: KMeans(), n_clusters, inertia, elbow, silhouette."
+            elif 'agglomerative' in criterion_name.lower():
+                criterion_type_hint = "\n\n**IMPORTANTE**: Este criterio evalúa Agglomerative Clustering (jerárquico), NO K-Means ni DBSCAN. Busca específicamente: AgglomerativeClustering(), dendrogram, linkage."
 
             # Construir prompt para GPT
             prompt = f"""
@@ -91,52 +120,86 @@ Eres un profesor experto y motivador en {course_name}. Evalúa el siguiente crit
 
 CRITERIO {criterion_number}: {criterion_name}
 Puntaje máximo: {max_score} puntos
+{criterion_type_hint}
 
 NIVELES DE DESEMPEÑO:
 {levels_text}
+{detailed_tasks_info}
 
 CONTENIDO DEL DOCUMENTO:
-{document_content[:4000]}
+{document_content[:30000]}
 {exercises_info}
 
 INSTRUCCIONES PARA GENERAR FEEDBACK:
 
-1. **Tono y Estilo**:
+1. **Verificación PUNTO POR PUNTO (SI HAY TAREAS ESPECÍFICAS)**:
+   - Revisa CADA tarea de la lista de "TAREAS ESPECÍFICAS"
+   - Para CADA tarea, determina si fue CUMPLIDA, PARCIALMENTE CUMPLIDA o NO CUMPLIDA
+   - Busca evidencia CONCRETA en el documento (código, métricas, gráficos, análisis)
+   - Menciona EN EL FEEDBACK cuáles tareas cumplió y cuáles no
+   - El puntaje debe reflejar el % de tareas cumplidas alineado con los NIVELES DE DESEMPEÑO
+
+2. **Tono y Estilo**:
    - Usa un tono cercano y motivador (ej: "Excelente trabajo", "Tu implementación demuestra...", "Se observa que...")
    - Sé específico con los datasets, métricas y técnicas que usó el estudiante
    - Menciona IDs de datasets si los encuentras (ej: "liver-disorders (ID:8)")
    - Reconoce los logros primero, luego sugiere mejoras
 
-2. **Detección de Ejercicios**:
+3. **Detección de Ejercicios**:
    - Busca menciones literales: "Ejercicio 1", "Ejercicio 2", "Ejercicio 3", etc.
-   - Si solo presentó ALGUNOS ejercicios → Puntaje PROPORCIONAL
+   - Si solo presentó ALGUNOS ejercicios -> Puntaje PROPORCIONAL
    - Menciona EXACTAMENTE cuáles ejercicios presentó
 
-3. **Estructura del Feedback** (según el criterio):
+3. **Estructura del Feedback** (según el criterio - ADAPTABLE):
 
-   **Para Criterio 1 (Carga y contextualización)**:
-   - Menciona si explicó el propósito médico/científico de los datasets
-   - Verifica si identificó correctamente variables objetivo y predictoras
-   - Revisa si especificó tamaños de datasets
+   Identifica qué tipo de criterio es basándote en su nombre/descripción:
 
-   **Para Criterio 2 (Regresión)**:
-   - Menciona qué modelos implementó (Lineal, Ridge, Lasso, Árbol)
-   - Verifica división de datos (75%-25%)
+   **Si el criterio menciona "carga", "datos", "dataset", "contextualización"**:
+   - Menciona si explicó el propósito/contexto de los datasets
+   - Verifica si identificó correctamente variables relevantes
+   - Revisa si especificó características de los datos
+
+   **Si el criterio menciona "regresión"**:
+   - Menciona qué modelos implementó (Lineal, Ridge, Lasso, Árbol, etc.)
+   - Verifica división de datos
    - Revisa cálculo de métricas (MAE, MSE, RMSE, R²)
-   - Menciona si comparó modelos en tabla
+   - Menciona si comparó modelos
 
-   **Para Criterio 3 (Clasificación)**:
-   - Menciona qué modelos implementó (Regresión Logística, Árbol, KNN, Perceptrón)
-   - Verifica división de datos (70%-30%)
+   **Si el criterio menciona "clasificación"**:
+   - Menciona qué modelos implementó (Regresión Logística, Árbol, KNN, Perceptrón, etc.)
+   - Verifica división de datos
    - Revisa cálculo de métricas (Accuracy, Precision, Recall, F1-score)
    - Verifica matriz de confusión
 
-   **Para Criterio 4 (Foro)**:
+   **Si el criterio menciona "K-Means" o "k-means"**:
+   - Verifica aplicación en escenarios (2 variables y más variables)
+   - Revisa método del codo y/o Silhouette Score
+   - Evalúa gráficos (scatterplot)
+   - Verifica descripción de perfiles de clusters
+   - Revisa respuestas a interrogantes
+
+   **Si el criterio menciona "DBSCAN" o "dbscan"**:
+   - Verifica correcta aplicación con variables numéricas
+   - Revisa justificación de parámetros epsilon (ϵ) y min_samples
+   - Verifica identificación de clusters y puntos de ruido
+   - Evalúa descripción de perfiles de clusters
+   - Revisa respuestas a interrogantes
+
+   **Si el criterio menciona "Agglomerative" o "jerárquico" o "hierarchical"**:
+   - Verifica selección y justificación de variables
+   - Revisa uso de dendrogramas
+   - Evalúa determinación del número óptimo de clusters
+   - Verifica descripción de perfiles de clusters
+
+   **Si el criterio menciona "foro", "participación", "feedback", "retroalimentación"**:
    - Menciona si adjuntó screenshot del foro
    - Evalúa calidad del feedback (constructivo, respetuoso, argumentado)
+   - Verifica publicación de ejercicios
 
-   **Para Criterio 5 (Formato)**:
+   **Si el criterio menciona "formato", "entrega", "documento"**:
    - Evalúa estructura, organización, claridad
+   - Verifica nombre de archivo correcto
+   - Revisa cumplimiento de requisitos de entrega
 
 4. **Ejemplos de Feedback Esperado**:
    - "Excelente trabajo en el Ejercicio X, cumples completamente con todos los requisitos solicitados..."
@@ -181,7 +244,7 @@ FORMATO DE RESPUESTA (JSON):
             }
 
         except Exception as e:
-            print(f"✗ Error generando feedback para criterio '{criterion_name}': {e}")
+            print(f"[ERROR] Error generando feedback para criterio '{criterion_name}': {e}")
             return {
                 'success': False,
                 'criterion_number': criterion.get('numero', 0),
@@ -265,7 +328,7 @@ FORMATO DE RESPUESTA (JSON):
             }
 
         except Exception as e:
-            print(f"✗ Error generando feedback general: {e}")
+            print(f"[ERROR] Error generando feedback general: {e}")
             return {
                 'success': False,
                 'error': str(e)
@@ -343,7 +406,7 @@ FORMATO DE RESPUESTA (JSON):
             }
 
         except Exception as e:
-            print(f"✗ Error generando feedback para sección '{section_name}': {e}")
+            print(f"[ERROR] Error generando feedback para sección '{section_name}': {e}")
             return {
                 'success': False,
                 'section': section_name,
@@ -422,7 +485,7 @@ FORMATO DE RESPUESTA (JSON):
             }
 
         except Exception as e:
-            print(f"✗ Error generando feedback general: {e}")
+            print(f"[ERROR] Error generando feedback general: {e}")
             return {
                 'success': False,
                 'error': str(e)
@@ -469,9 +532,18 @@ FORMATO DE RESPUESTA (JSON):
         print(f"       Archivo: {file_name if file_name else 'Sin nombre'}")
         print(f"       Total criterios: {len(criteria_to_evaluate)}")
 
+        # NUEVO: Cargar condiciones detalladas del curso
+        course_folder = self._get_course_folder_from_name(course_name)
+        condiciones = self._load_condiciones(course_folder) if course_folder else {}
+
+        if condiciones:
+            print(f"       [OK] Condiciones cargadas - Verificacion PUNTO POR PUNTO activada")
+        else:
+            print(f"       [INFO] Sin condiciones - Evaluacion estandar")
+
         # PRIMERO: Detectar ejercicios en el documento
         exercises_in_doc = self._detect_exercises_in_document(document_content)
-        print(f"       🔍 Ejercicios detectados en documento: {exercises_in_doc if exercises_in_doc else 'Ninguno'}")
+        print(f"       [EJERCICIOS] Detectados en documento: {exercises_in_doc if exercises_in_doc else 'Ninguno'}")
 
         # Detectar criterio/ejercicio desde nombre del archivo
         detected_criterion = self._detect_criterion_from_filename(file_name) if file_name else None
@@ -487,11 +559,11 @@ FORMATO DE RESPUESTA (JSON):
             match = re.search(r'ejercicio\s*(\d+)', clean_name.lower())
             if match:
                 detected_criterion = int(match.group(1))
-                print(f"       ✓ Ejercicio detectado desde nombre archivo: {detected_criterion}")
+                print(f"       [OK] Ejercicio detectado desde nombre archivo: {detected_criterion}")
 
         if detected_criterion:
-            print(f"       ✓ Criterio/Ejercicio detectado desde nombre: {detected_criterion}")
-            print(f"       ⚠️ MODO FILTRADO: Solo se evaluará el Criterio {detected_criterion}")
+            print(f"       [OK] Criterio/Ejercicio detectado desde nombre: {detected_criterion}")
+            print(f"       [FILTRADO] Solo se evaluara el Criterio {detected_criterion}")
 
         # Evaluar cada criterio
         criteria_feedbacks = []
@@ -506,7 +578,7 @@ FORMATO DE RESPUESTA (JSON):
             # Solo evaluar ese criterio (excepto 4 y 5 que siempre se evalúan)
             if detected_criterion is not None:
                 if criterion_num not in [4, 5] and criterion_num != detected_criterion:
-                    print(f"  ⏭️ Criterio {criterion_num}: SALTADO (archivo indica Criterio {detected_criterion})")
+                    print(f"  [SKIP] Criterio {criterion_num}: SALTADO (archivo indica Criterio {detected_criterion})")
                     # Crear feedback de NO PRESENTADO
                     feedback = {
                         'success': True,
@@ -528,14 +600,15 @@ FORMATO DE RESPUESTA (JSON):
                 document_content=document_content,
                 course_name=course_name,
                 detected_criterion=detected_criterion,  # NUEVO
-                exercises_in_document=exercises_in_doc  # NUEVO
+                exercises_in_document=exercises_in_doc,  # NUEVO
+                condiciones=condiciones  # NUEVO: Pasar condiciones para verificación detallada
             )
 
             if feedback.get('success'):
                 criteria_feedbacks.append(feedback)
                 total_score += feedback['score']
             else:
-                print(f"  ✗ Error en criterio: {criterion['nombre']}")
+                print(f"  [ERROR] Error en criterio: {criterion['nombre']}")
 
         # Generar retroalimentación general
         print(f"\n  [GENERAL] Generando feedback general...")
@@ -592,7 +665,7 @@ FORMATO DE RESPUESTA (JSON):
                 weighted_score = (feedback['score'] / 100) * section['peso']
                 total_weighted_score += weighted_score
             else:
-                print(f"  ✗ Error en sección: {section['seccion']}")
+                print(f"  [ERROR] Error en seccion: {section['seccion']}")
 
         # Generar retroalimentación general
         print(f"\n  [GENERAL] Generando feedback general...")
@@ -664,7 +737,7 @@ FORMATO DE RESPUESTA (JSON):
             criterion_name = criterion['nombre']
             criterion_num = criterion.get('numero', 0)
 
-            # PISTA POSITIVA: Si el nombre del archivo indica ESTE criterio → Facilitar detección
+            # PISTA POSITIVA: Si el nombre del archivo indica ESTE criterio -> Facilitar detección
             file_hint_matches = (detected_criterion is not None and detected_criterion == criterion_num)
 
             # Detectar ejercicios presentes en el documento
@@ -676,48 +749,79 @@ FORMATO DE RESPUESTA (JSON):
             print(f"    - exercises_found: {exercises_in_doc}")
 
             if file_hint_matches:
-                print(f"  💡 Criterio {criterion_num}: Nombre del archivo indica este criterio (PISTA POSITIVA)")
+                print(f"  [INFO] Criterio {criterion_num}: Nombre del archivo indica este criterio (PISTA POSITIVA)")
 
             # DETECCIÓN DIRECTA POR EJERCICIOS
             # Si encuentra "Ejercicio X" en el documento, asumir que el criterio está presente
             if len(exercises_in_doc) > 0:
                 # Si este criterio está en la lista de ejercicios detectados, PRESENTE
                 if criterion_num in exercises_in_doc:
-                    print(f"  ✅ Criterio {criterion_num}: Encontró Ejercicio {criterion_num} en el documento → PRESENTE")
+                    print(f"  [OK] Criterio {criterion_num}: Encontró Ejercicio {criterion_num} en el documento -> PRESENTE")
                     return True
                 else:
-                    print(f"  ⚠️ Criterio {criterion_num}: Ejercicios detectados {exercises_in_doc}, pero no incluye {criterion_num}")
+                    print(f"  [WARN] Criterio {criterion_num}: Ejercicios detectados {exercises_in_doc}, pero no incluye {criterion_num}")
 
-            # Keywords OBLIGATORIAS ESPECÍFICAS (más flexibles ahora)
-            # Se aceptan keywords generales que indiquen presencia del criterio
-            required_keywords = {
-                1: [
-                    ['dataset', 'datos', 'data', 'csv', 'archivo'],
-                    ['carga', 'load', 'read_csv', 'lectura'],
-                    ['análisis', 'exploración', 'EDA', 'describe', 'info', 'head'],
-                ],
-                2: [
-                    ['regresión', 'regression', 'regressor', 'predic'],
-                    ['MAE', 'MSE', 'RMSE', 'R²', 'r2', 'error', 'métrica'],
-                ],
-                3: [
-                    ['clasificación', 'classification', 'classifier', 'clase'],
-                    ['accuracy', 'precision', 'recall', 'F1', 'score', 'exactitud'],
-                ],
-                4: [
-                    ['foro', 'forum', 'participación', 'comentario'],
-                ],
-                5: [
-                    # Criterio 5 siempre presente (formato)
-                    ['documento', 'entrega', 'formato', 'archivo']
-                ]
-            }
+            # Keywords DINÁMICAS basadas en el nombre del criterio
+            # Detectar automáticamente si es Fase 2 (Regresión/Clasificación) o Fase 3 (Clustering)
+            criterion_name_lower = criterion_name.lower()
+
+            # FASE 3: Clustering (K-Means, DBSCAN, Agglomerative)
+            if 'k-mean' in criterion_name_lower or 'kmean' in criterion_name_lower:
+                required_keywords = {
+                    criterion_num: [
+                        ['kmeans', 'k-means', 'k_means', 'cluster', 'agrupamiento'],
+                        ['elbow', 'codo', 'silhouette', 'inertia'],
+                    ]
+                }
+            elif 'dbscan' in criterion_name_lower:
+                required_keywords = {
+                    criterion_num: [
+                        ['dbscan', 'db-scan', 'db_scan', 'cluster', 'agrupamiento'],
+                        ['epsilon', 'eps', 'min_samples', 'ruido', 'noise', 'outlier'],
+                    ]
+                }
+            elif 'agglomerative' in criterion_name_lower or 'jerárquico' in criterion_name_lower or 'hierarchical' in criterion_name_lower:
+                required_keywords = {
+                    criterion_num: [
+                        ['agglomerative', 'hierarchical', 'jerárquico', 'cluster', 'agrupamiento'],
+                        ['dendrograma', 'dendrogram', 'linkage'],
+                    ]
+                }
+            # FASE 2: Regresión y Clasificación
+            elif 'regresión' in criterion_name_lower or 'regression' in criterion_name_lower:
+                required_keywords = {
+                    criterion_num: [
+                        ['regresión', 'regression', 'regressor', 'predic'],
+                        ['MAE', 'MSE', 'RMSE', 'R²', 'r2', 'error', 'métrica'],
+                    ]
+                }
+            elif 'clasificación' in criterion_name_lower or 'classification' in criterion_name_lower:
+                required_keywords = {
+                    criterion_num: [
+                        ['clasificación', 'classification', 'classifier', 'clase'],
+                        ['accuracy', 'precision', 'recall', 'F1', 'score', 'exactitud'],
+                    ]
+                }
+            # GENÉRICOS (Foro, Formato, Carga de datos)
+            else:
+                required_keywords = {
+                    1: [
+                        ['dataset', 'datos', 'data', 'csv', 'archivo'],
+                        ['carga', 'load', 'read_csv', 'lectura'],
+                    ],
+                    4: [
+                        ['foro', 'forum', 'participación', 'comentario'],
+                    ],
+                    5: [
+                        ['documento', 'entrega', 'formato', 'archivo']
+                    ]
+                }
 
             # Keywords DE EXCLUSIÓN (si están presentes, DESCARTAR el criterio)
             exclusion_keywords = {
-                1: ['regresión', 'regression', 'clasificación', 'classification', 'MAE', 'MSE', 'accuracy', 'precision', 'recall'],  # Si tiene modelos → NO es solo Criterio 1
-                2: ['clasificación', 'classification', 'accuracy', 'precision', 'recall', 'F1'],  # Si tiene clasificación → NO es Criterio 2
-                3: ['regresión', 'regression', 'MAE', 'MSE', 'RMSE']  # Si SOLO tiene regresión → NO es Criterio 3
+                1: ['regresión', 'regression', 'clasificación', 'classification', 'MAE', 'MSE', 'accuracy', 'precision', 'recall'],  # Si tiene modelos -> NO es solo Criterio 1
+                2: ['clasificación', 'classification', 'accuracy', 'precision', 'recall', 'F1'],  # Si tiene clasificación -> NO es Criterio 2
+                3: ['regresión', 'regression', 'MAE', 'MSE', 'RMSE']  # Si SOLO tiene regresión -> NO es Criterio 3
             }
 
             doc_lower = document_content.lower()
@@ -734,6 +838,21 @@ FORMATO DE RESPUESTA (JSON):
                 if any(kw.lower() in doc_lower for kw in group):
                     groups_matched += 1
 
+            # DETECCIÓN ESPECIAL PARA DBSCAN: Si encuentra "DBSCAN" en el código, ACEPTAR INMEDIATAMENTE
+            if 'dbscan' in criterion_name_lower and 'dbscan' in doc_lower:
+                print(f"  [OK] Criterio {criterion_num}: Encontró 'DBSCAN' en el documento -> PRESENTE (detección directa)")
+                return True
+
+            # DETECCIÓN ESPECIAL PARA K-MEANS: Si encuentra "kmeans" en el código, ACEPTAR INMEDIATAMENTE
+            if ('k-mean' in criterion_name_lower or 'kmean' in criterion_name_lower) and ('kmeans' in doc_lower or 'k-means' in doc_lower):
+                print(f"  [OK] Criterio {criterion_num}: Encontró 'KMeans' en el documento -> PRESENTE (detección directa)")
+                return True
+
+            # DETECCIÓN ESPECIAL PARA AGGLOMERATIVE: Si encuentra "agglomerative" en el código, ACEPTAR INMEDIATAMENTE
+            if 'agglomerative' in criterion_name_lower and 'agglomerative' in doc_lower:
+                print(f"  [OK] Criterio {criterion_num}: Encontró 'Agglomerative' en el documento -> PRESENTE (detección directa)")
+                return True
+
             # Ajustar requisitos según pista de archivo
             # AHORA MÁS FLEXIBLE: Solo necesita 1 grupo en general
             if file_hint_matches:
@@ -743,10 +862,10 @@ FORMATO DE RESPUESTA (JSON):
                 min_groups = 1
 
             if groups_matched < min_groups:
-                print(f"  ✗ Criterio {criterion_num}: Solo {groups_matched}/{len(required_groups)} grupos obligatorios → NO PRESENTADO")
+                print(f"  [ERROR] Criterio {criterion_num}: Solo {groups_matched}/{len(required_groups)} grupos obligatorios -> NO PRESENTADO")
                 return False
 
-            print(f"  ✓ Criterio {criterion_num}: Encontró {groups_matched}/{len(required_groups)} grupos de keywords (mínimo: {min_groups})")
+            print(f"  [OK] Criterio {criterion_num}: Encontró {groups_matched}/{len(required_groups)} grupos de keywords (mínimo: {min_groups})")
 
             # FASE 2: Validación con GPT
             # Si NO hay criterio detectado desde archivo, ser MUY PERMISIVO (trabajo completo)
@@ -763,27 +882,39 @@ Determina si el siguiente documento contiene evidencia del criterio:
 CRITERIO {criterion_num}: "{criterion_name}"
 
 DOCUMENTO COMPLETO:
-{document_content[:4000]}
+{document_content[:30000]}
 
-INSTRUCCIONES:
+INSTRUCCIONES ADAPTABLES según el nombre del criterio:
 
-**Criterio 1** (Carga y análisis de datos):
-- Busca: Carga de dataset, análisis, limpieza, exploración
-- Si encuentra estas actividades → TRUE
+**Si el criterio menciona "K-Means" o "k-means"**:
+- Busca: Implementación de K-Means, método del codo, Silhouette Score, selección de número de clusters, perfiles de clusters
+- Código Python: KMeans(), inertia, silhouette_score
+- Si encuentra esta implementación -> TRUE
 
-**Criterio 2** (Modelos de REGRESIÓN):
+**Si el criterio menciona "DBSCAN"**:
+- Busca: Implementación de DBSCAN, selección de epsilon y min_samples, identificación de clusters y puntos de ruido
+- Código Python: DBSCAN(), eps, min_samples, labels, outliers, noise
+- IMPORTANTE: Busca también preparación de datos (StandardScaler, variables numéricas)
+- Si encuentra esta implementación -> TRUE
+
+**Si el criterio menciona "Agglomerative" o "jerárquico"**:
+- Busca: Implementación de Agglomerative Clustering, dendrogramas, selección de variables, número óptimo de clusters
+- Código Python: AgglomerativeClustering(), dendrogram, linkage
+- Si encuentra esta implementación -> TRUE
+
+**Si el criterio menciona "regresión"**:
 - Busca: Implementación de regresión, métricas (MAE, MSE, RMSE, R²)
-- Si encuentra modelos de regresión → TRUE
+- Si encuentra modelos de regresión -> TRUE
 
-**Criterio 3** (Modelos de CLASIFICACIÓN):
+**Si el criterio menciona "clasificación"**:
 - Busca: Implementación de clasificación, métricas (accuracy, precision, recall, F1)
-- Si encuentra modelos de clasificación → TRUE
+- Si encuentra modelos de clasificación -> TRUE
 
-**Criterio 4** (Participación en foro):
-- Busca: Menciones de foro, retroalimentación, participación
-- Si encuentra participación → TRUE
+**Si el criterio menciona "foro" o "participación"**:
+- Busca: Menciones de foro, retroalimentación, participación, screenshot
+- Si encuentra participación -> TRUE
 
-**Criterio 5** (Formato):
+**Si el criterio menciona "formato" o "entrega"**:
 - Siempre TRUE (evalúa formato del documento)
 
 IMPORTANTE: Si encuentras evidencia razonable del criterio, marca como TRUE.
@@ -823,30 +954,30 @@ Responde SOLO con JSON:
             if not is_present:
                 # PERO: Si el nombre del archivo coincide, dar una segunda oportunidad
                 if file_hint_matches:
-                    print(f"  ⚠ Criterio {criterion_num}: GPT dice NO PRESENTE pero archivo indica este criterio")
-                    print(f"     → ACEPTAR por pista de archivo (razón GPT: {reason[:80]})")
+                    print(f"  [WARN] Criterio {criterion_num}: GPT dice NO PRESENTE pero archivo indica este criterio")
+                    print(f"     -> ACEPTAR por pista de archivo (razón GPT: {reason[:80]})")
                     return True
                 else:
-                    print(f"  ✗ Criterio {criterion_num}: GPT confirmó NO PRESENTE → {reason}")
+                    print(f"  [ERROR] Criterio {criterion_num}: GPT confirmó NO PRESENTE -> {reason}")
                     return False
 
             # Si GPT dice SÍ pero con confianza BAJA
             if is_present and confidence == 'baja':
                 # Si hay pista de archivo, ACEPTAR igual
                 if file_hint_matches:
-                    print(f"  ✓ Criterio {criterion_num}: Confianza baja pero archivo coincide → ACEPTAR")
+                    print(f"  [OK] Criterio {criterion_num}: Confianza baja pero archivo coincide -> ACEPTAR")
                     return True
                 else:
-                    print(f"  ⚠ Criterio {criterion_num}: GPT dice PRESENTE pero confianza BAJA → NO PRESENTADO ({reason})")
+                    print(f"  [WARN] Criterio {criterion_num}: GPT dice PRESENTE pero confianza BAJA -> NO PRESENTADO ({reason})")
                     return False
 
             # Si llegó aquí: GPT confirmó con confianza media/alta
-            print(f"  ✓ Criterio {criterion_num}: PRESENTE confirmado (grupos: {groups_matched}, confianza: {confidence})")
+            print(f"  [OK] Criterio {criterion_num}: PRESENTE confirmado (grupos: {groups_matched}, confianza: {confidence})")
             print(f"     Razón: {reason[:100]}")
             return True
 
         except Exception as e:
-            print(f"⚠ Error verificando presencia del criterio: {e}")
+            print(f"[WARN] Error verificando presencia del criterio: {e}")
             # En caso de error, RECHAZAR por defecto (modo estricto)
             return False
 
@@ -900,6 +1031,103 @@ Responde SOLO con JSON:
         from datetime import datetime
         return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+    def _load_condiciones(self, course_folder: str) -> Dict:
+        """
+        Carga el archivo condiciones.json de un curso
+
+        Args:
+            course_folder: Nombre de la carpeta del curso (ej: 'machine_learning_fase3')
+
+        Returns:
+            Dict con las condiciones o dict vacío si no existe
+        """
+        # Verificar cache
+        if course_folder in self.condiciones_cache:
+            return self.condiciones_cache[course_folder]
+
+        # Buscar archivo condiciones.json
+        condiciones_path = Path(f"courses/{course_folder}/condiciones.json")
+
+        if not condiciones_path.exists():
+            print(f"  [INFO] No se encontró condiciones.json para {course_folder}")
+            return {}
+
+        try:
+            with open(condiciones_path, 'r', encoding='utf-8') as f:
+                condiciones = json.load(f)
+                self.condiciones_cache[course_folder] = condiciones
+                print(f"  [OK] Cargadas condiciones para {course_folder}")
+                return condiciones
+        except Exception as e:
+            print(f"  [ERROR] Error cargando condiciones: {e}")
+            return {}
+
+    def _get_detailed_tasks_for_criterion(self, criterion_num: int, condiciones: Dict) -> Dict:
+        """
+        Obtiene las tareas detalladas para un criterio específico
+
+        Args:
+            criterion_num: Número del criterio (1, 2, 3, etc.)
+            condiciones: Dict con las condiciones del curso
+
+        Returns:
+            Dict con:
+            - tasks: list (lista de tareas específicas)
+            - deliverables: list (entregables esperados)
+            - description: str (descripción del ejercicio)
+        """
+        if not condiciones or 'ejercicios' not in condiciones:
+            return {'tasks': [], 'deliverables': [], 'description': ''}
+
+        # Buscar el ejercicio correspondiente
+        for ejercicio in condiciones['ejercicios']:
+            if ejercicio.get('numero') == criterion_num:
+                tasks = []
+                deliverables = ejercicio.get('entregables', [])
+                description = ejercicio.get('descripcion', '')
+
+                # Tareas directas
+                if 'tareas' in ejercicio:
+                    tasks.extend(ejercicio['tareas'])
+
+                # Si tiene escenarios (como K-Means)
+                if 'escenarios' in ejercicio:
+                    for escenario in ejercicio['escenarios']:
+                        escenario_num = escenario.get('escenario', 0)
+                        escenario_nombre = escenario.get('nombre', f'Escenario {escenario_num}')
+
+                        if 'tareas' in escenario:
+                            for tarea in escenario['tareas']:
+                                tasks.append(f"[{escenario_nombre}] {tarea}")
+
+                return {
+                    'tasks': tasks,
+                    'deliverables': deliverables,
+                    'description': description
+                }
+
+        return {'tasks': [], 'deliverables': [], 'description': ''}
+
+    def _get_course_folder_from_name(self, course_name: str) -> str:
+        """
+        Obtiene el nombre de la carpeta del curso desde el nombre del curso
+
+        Args:
+            course_name: Nombre del curso (ej: "Machine Learning - Fase 3")
+
+        Returns:
+            Nombre de la carpeta (ej: "machine_learning_fase3")
+        """
+        # Mapeo de nombres de curso a carpetas
+        mappings = {
+            'Machine Learning - Fase 2': 'machine_learning',
+            'Machine Learning - Fase 3': 'machine_learning_fase3',
+            'Machine Learning': 'machine_learning',
+            'Big Data Integration': 'big_data_integration'
+        }
+
+        return mappings.get(course_name, '')
+
 
 if __name__ == "__main__":
     # Test del generador de feedback
@@ -943,10 +1171,10 @@ if __name__ == "__main__":
     result = generator.evaluate_document(test_document, rubric)
 
     if result['success']:
-        print(f"\n✓ Evaluación completada")
+        print(f"\n[OK] Evaluación completada")
         print(f"  - Puntaje total: {result['total_score']}/100")
         print(f"  - Secciones evaluadas: {len(result['section_feedbacks'])}")
         print(f"\n  Feedback general:")
         print(f"  {result['overall_feedback']['summary'][:200]}...")
     else:
-        print(f"✗ Error en evaluación")
+        print(f"[ERROR] Error en evaluación")

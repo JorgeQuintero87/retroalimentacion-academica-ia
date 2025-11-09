@@ -1,0 +1,163 @@
+{
+  "nombre_curso": "Machine Learning - Fase 3",
+  "fase": "Fase 3 - Componente Práctico - Prácticas Simuladas",
+  "tipo_actividad": "Independiente",
+  "resultado_aprendizaje": "Aplicar algoritmos no supervisados de agrupamiento para encontrar patterns y estructuras de los datos",
+  "descripcion_general": "El estudiante debe realizar una práctica simulada independiente enfocada en la aplicación de algoritmos no supervisados de agrupamiento (clustering) para encontrar patrones y estructuras en los datos, utilizando los datasets correspondientes al ítem escogido en la Fase 2.",
+  "herramientas_requeridas": [
+    "Python instalado en computador local O cuenta en Google Colab",
+    "Jupyter Notebook (.ipynb)",
+    "Librerías: scikit-learn, pandas, numpy, matplotlib, seaborn"
+  ],
+  "ejercicios": [
+    {
+      "numero": 1,
+      "nombre": "K-Means Clustering",
+      "descripcion": "Aplicar el algoritmo K-Means y analizar sus resultados en dos escenarios diferentes",
+      "escenarios": [
+        {
+          "escenario": 1,
+          "nombre": "Agrupación con dos variables",
+          "tareas": [
+            "Seleccionar dos variables numéricas consideradas más relevantes",
+            "Determinar cuántos clústeres (k) serían adecuados para representar tipos de clientes",
+            "Establecer los criterios utilizados para determinar este número k (método del codo, Silhouette Score, etc.)",
+            "Graficar un scatterplot de las dos variables elegidas, identificando los clústeres seleccionados"
+          ]
+        },
+        {
+          "escenario": 2,
+          "nombre": "Agrupación con más variables",
+          "tareas": [
+            "Volver a aplicar el algoritmo K-Means, pero incrementando el número de variables numéricas",
+            "Verificar si incrementar el número de variables mejora la agrupación del clúster",
+            "Verificar esta mejora utilizando las métricas en el método del codo y Silhouette Score",
+            "Con el mejor algoritmo obtenido (ya sea el de 2 variables o el de más variables), determinar de manera detallada y con sus palabras, el perfil característico de cada clúster en cuanto a las variables proporcionadas"
+          ]
+        }
+      ],
+      "entregables": [
+        "Gráfico scatterplot de 2 variables con clusters identificados",
+        "Gráficos del método del codo y Silhouette Score para ambos escenarios",
+        "Comparación entre escenario 1 (2 variables) y escenario 2 (más variables)",
+        "Descripción detallada de perfiles de cada cluster del mejor modelo"
+      ]
+    },
+    {
+      "numero": 2,
+      "nombre": "Algoritmo DBSCAN",
+      "descripcion": "Aplicar el algoritmo DBSCAN tomando tres variables numéricas",
+      "tareas": [
+        "Seleccionar tres variables numéricas relevantes",
+        "Determinar el valor de épsilon (ϵ) apropiado para el algoritmo DBSCAN",
+        "Determinar el valor de min_samples apropiado",
+        "Indicar cuántos clústeres serían adecuados para el modelo (incluyendo identificación de puntos de ruido)",
+        "Determinar de manera detallada, con sus palabras, el perfil característico de cada clúster en cuanto a las variables proporcionadas"
+      ],
+      "entregables": [
+        "Justificación de parámetros epsilon (ϵ) y min_samples",
+        "Número de clusters identificados",
+        "Identificación de puntos de ruido (outliers)",
+        "Descripción detallada de perfiles de cada cluster"
+      ]
+    },
+    {
+      "numero": 3,
+      "nombre": "Agglomerative Clustering",
+      "descripcion": "Usar el método Agglomerative Clustering tomando cuatro variables relevantes",
+      "tareas": [
+        "Seleccionar cuatro variables numéricas que considere más relevantes para construir los clústeres",
+        "Explicar la razón de escogencia de estas cuatro variables",
+        "Encontrar el número óptimo de clústeres utilizando dendrogramas",
+        "Interpretar correctamente el dendrograma generado",
+        "Determinar de manera detallada, con sus palabras, el perfil característico de cada clúster en cuanto a las variables proporcionadas"
+      ],
+      "entregables": [
+        "Justificación de las cuatro variables seleccionadas",
+        "Dendrograma generado",
+        "Determinación del número óptimo de clusters basado en el dendrograma",
+        "Descripción detallada de perfiles de cada cluster"
+      ]
+    },
+    {
+      "numero": 4,
+      "nombre": "Feedback a Compañero",
+      "descripcion": "Realizar retroalimentación constructiva a un compañero del grupo",
+      "tareas": [
+        "Seleccionar un ejercicio (literal) desarrollado por uno de sus compañeros en el foro",
+        "Realizar una retroalimentación constructiva, respetuosa y específica a ese ejercicio",
+        "La retroalimentación debe demostrar análisis y comprensión del tema",
+        "Adjuntar un screenshot del feedback realizado a uno de los compañeros en el foro de la Fase 3"
+      ],
+      "entregables": [
+        "Screenshot del feedback realizado en el foro",
+        "Retroalimentación que demuestre análisis del trabajo del compañero"
+      ]
+    }
+  ],
+  "evidencias_entrega": {
+    "publicacion_foro": {
+      "descripcion": "El aporte de los 3 ejercicios (K-Means, DBSCAN, Agglomerative Clustering) debe publicarse en el foro",
+      "formato": "PDF o JPG",
+      "contenido": [
+        "Ejercicio 1: K-Means (ambos escenarios)",
+        "Ejercicio 2: DBSCAN",
+        "Ejercicio 3: Agglomerative Clustering"
+      ]
+    },
+    "entrega_evaluacion": {
+      "descripcion": "Archivo Jupyter Notebook que debe entregarse en el entorno de Evaluación",
+      "formato": ".ipynb",
+      "nombre_archivo": "G#_(nombre_apellido)_Fase3.ipynb",
+      "ejemplo_nombre": "G15_Rafael_Gaitan_Fase3.ipynb",
+      "contenido": [
+        "Ejercicio 1: K-Means Clustering (Escenario 1 y 2)",
+        "Ejercicio 2: DBSCAN",
+        "Ejercicio 3: Agglomerative Clustering",
+        "Ejercicio 4: Screenshot de feedback a compañero"
+      ],
+      "notas": [
+        "Este archivo debe subirse en la plantilla indicada por la guía",
+        "Debe incluir todos los ejercicios desarrollados de forma clara y organizada",
+        "Debe contener código ejecutable, gráficos y análisis descriptivo"
+      ]
+    }
+  },
+  "algoritmos_obligatorios": [
+    {
+      "nombre": "K-Means",
+      "variables_minimas": 2,
+      "variables_escenario_2": "Más de 2 variables numéricas",
+      "metricas_requeridas": ["Método del codo", "Silhouette Score"]
+    },
+    {
+      "nombre": "DBSCAN",
+      "variables_requeridas": 3,
+      "parametros_requeridos": ["epsilon (ϵ)", "min_samples"]
+    },
+    {
+      "nombre": "Agglomerative Clustering",
+      "variables_requeridas": 4,
+      "herramienta_requerida": "Dendrograma"
+    }
+  ],
+  "puntos_clave_evaluacion": [
+    "Correcta implementación de los tres algoritmos de clustering",
+    "Justificación técnica de parámetros y número de clusters",
+    "Uso apropiado de métricas (método del codo, Silhouette Score, dendrogramas)",
+    "Descripción detallada y con propias palabras de los perfiles de cada cluster",
+    "Calidad de los gráficos generados (scatterplots, dendrogramas)",
+    "Comparación entre escenarios en K-Means",
+    "Participación activa en foro y retroalimentación constructiva",
+    "Cumplimiento de formato de entrega (.ipynb con nombre correcto)"
+  ],
+  "recomendaciones": [
+    "Explorar los datos antes de aplicar los algoritmos",
+    "Normalizar/estandarizar las variables numéricas cuando sea apropiado",
+    "Experimentar con diferentes valores de k en K-Means",
+    "Justificar todas las decisiones tomadas (selección de variables, parámetros, número de clusters)",
+    "Incluir visualizaciones claras y bien etiquetadas",
+    "Describir los perfiles de clusters de forma comprensible y detallada",
+    "Realizar feedback constructivo y específico a los compañeros"
+  ]
+}

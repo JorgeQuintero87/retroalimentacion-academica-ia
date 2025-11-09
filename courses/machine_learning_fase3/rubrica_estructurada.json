@@ -1,0 +1,176 @@
+{
+  "nombre_curso": "Machine Learning - Fase 3",
+  "fase": "Fase 3 - Componente Práctico - Algoritmos No Supervisados",
+  "resultado_aprendizaje": "Aplicar algoritmos no supervisados de agrupamiento para encontrar patrones y estructuras de los datos",
+  "puntaje_total": 200,
+  "criterios_evaluacion": [
+    {
+      "numero": 1,
+      "nombre": "Aplica modelo no supervisado K-means determinando detalladamente perfiles y justificaciones a interrogantes",
+      "puntaje_maximo": 60,
+      "descripcion_general": "Evalúa la correcta aplicación del algoritmo K-means en dos escenarios (2 variables y más variables), la justificación de elección del número de clusters usando método del codo y Silhouette Score, y la descripción detallada de perfiles de cada cluster",
+      "niveles": [
+        {
+          "nivel": "alto",
+          "puntaje_minimo": 51,
+          "puntaje_maximo": 60,
+          "descripcion": "El estudiante aplica correctamente el modelo K-means en ambos escenarios (2 variables y más variables), justifica adecuadamente la elección del número de clusters usando método del codo y/o Silhouette Score, compara correctamente ambos escenarios, grafica scatterplot de forma clara, describe de forma detallada y con sus propias palabras los perfiles encontrados en cada cluster, y responde con fundamento técnico a los interrogantes planteados."
+        },
+        {
+          "nivel": "medio",
+          "puntaje_minimo": 42,
+          "puntaje_maximo": 50,
+          "descripcion": "El estudiante aplica el modelo K-means, pero presenta dificultades menores en la elección o justificación del número de clusters, o en la comparación entre escenarios. Los gráficos pueden estar incompletos. La descripción de los perfiles es general o poco detallada. Las respuestas a los interrogantes son correctas pero superficiales o incompletas."
+        },
+        {
+          "nivel": "bajo",
+          "puntaje_minimo": 1,
+          "puntaje_maximo": 41,
+          "descripcion": "La aplicación de K-means es incorrecta o confusa, no compara ambos escenarios adecuadamente, los gráficos están ausentes o son incorrectos, los perfiles no están bien definidos y las respuestas a los interrogantes carecen de justificación o presentan errores conceptuales."
+        },
+        {
+          "nivel": "no_presentado",
+          "puntaje_minimo": 0,
+          "puntaje_maximo": 0,
+          "descripcion": "El estudiante no entrega la actividad o no incluye ninguna aplicación del modelo K-means ni respuestas a los interrogantes."
+        }
+      ]
+    },
+    {
+      "numero": 2,
+      "nombre": "Aplica modelo no supervisado DBSCAN determinando detalladamente perfiles y justificaciones a interrogantes",
+      "puntaje_maximo": 60,
+      "descripcion_general": "Evalúa la correcta aplicación del algoritmo DBSCAN con tres variables numéricas, la determinación apropiada del parámetro epsilon (ϵ) y min_samples, la identificación del número de clusters, y la descripción detallada de perfiles",
+      "niveles": [
+        {
+          "nivel": "alto",
+          "puntaje_minimo": 51,
+          "puntaje_maximo": 60,
+          "descripcion": "El estudiante aplica correctamente el modelo DBSCAN con tres variables numéricas, justifica adecuadamente la elección de los parámetros epsilon (ϵ) y min_samples con fundamento técnico, determina correctamente el número de clusters identificando también los puntos de ruido, describe de forma clara, detallada y con sus propias palabras los perfiles encontrados en cada cluster en cuanto a las variables proporcionadas, y responde con fundamento técnico a los interrogantes planteados."
+        },
+        {
+          "nivel": "medio",
+          "puntaje_minimo": 42,
+          "puntaje_maximo": 50,
+          "descripcion": "El estudiante aplica el modelo DBSCAN, pero presenta dificultades menores en la elección o justificación de parámetros (epsilon y/o min_samples). La identificación del número de clusters es correcta pero con explicación superficial. La descripción de los perfiles es general o poco detallada. Las respuestas a los interrogantes son correctas pero incompletas."
+        },
+        {
+          "nivel": "bajo",
+          "puntaje_minimo": 1,
+          "puntaje_maximo": 41,
+          "descripcion": "La aplicación de DBSCAN es incorrecta o confusa, los parámetros no están justificados o tienen valores inapropiados, el número de clusters no está correctamente determinado, los perfiles no están bien definidos y las respuestas a los interrogantes carecen de justificación o presentan errores conceptuales."
+        },
+        {
+          "nivel": "no_presentado",
+          "puntaje_minimo": 0,
+          "puntaje_maximo": 0,
+          "descripcion": "El estudiante no entrega la actividad o no incluye la aplicación del modelo DBSCAN ni respuestas a los interrogantes."
+        }
+      ]
+    },
+    {
+      "numero": 3,
+      "nombre": "Aplica modelo no supervisado Agglomerative Clustering determinando detalladamente número de clusters y perfiles",
+      "puntaje_maximo": 60,
+      "descripcion_general": "Evalúa la correcta aplicación del método Agglomerative Clustering con cuatro variables relevantes, el uso de dendrogramas para determinar el número óptimo de clusters, y la descripción detallada de perfiles de cada cluster",
+      "niveles": [
+        {
+          "nivel": "alto",
+          "puntaje_minimo": 51,
+          "puntaje_maximo": 60,
+          "descripcion": "El estudiante aplica correctamente el modelo Agglomerative Clustering utilizando cuatro variables numéricas, justifica adecuadamente la selección de estas variables explicando su relevancia, encuentra correctamente el número óptimo de clusters utilizando dendrogramas de forma apropiada, interpreta correctamente el dendrograma, y describe de forma clara, detallada y con sus propias palabras el perfil característico de cada cluster en cuanto a las variables proporcionadas."
+        },
+        {
+          "nivel": "medio",
+          "puntaje_minimo": 42,
+          "puntaje_maximo": 50,
+          "descripcion": "El estudiante aplica el modelo Agglomerative Clustering, pero presenta dificultades menores en la justificación de las variables seleccionadas. El dendrograma está presente pero con interpretación superficial o con errores menores. La determinación del número óptimo de clusters es razonable pero poco justificada. La descripción de los perfiles es general o poco detallada."
+        },
+        {
+          "nivel": "bajo",
+          "puntaje_minimo": 1,
+          "puntaje_maximo": 41,
+          "descripcion": "La aplicación de Agglomerative Clustering es incorrecta o confusa, no justifica la selección de variables, el dendrograma está ausente o mal interpretado, el número de clusters no está correctamente determinado, y los perfiles no están bien definidos o presentan errores conceptuales."
+        },
+        {
+          "nivel": "no_presentado",
+          "puntaje_minimo": 0,
+          "puntaje_maximo": 0,
+          "descripcion": "El estudiante no entrega la actividad o no incluye ningún modelo de Agglomerative Clustering ni análisis relacionado."
+        }
+      ]
+    },
+    {
+      "numero": 4,
+      "nombre": "Participación en foro y retroalimentación a compañero de grupo",
+      "puntaje_maximo": 10,
+      "descripcion_general": "Evalúa la participación activa en el foro publicando los ejercicios desarrollados y la calidad de la retroalimentación constructiva realizada a un compañero",
+      "niveles": [
+        {
+          "nivel": "alto",
+          "puntaje_minimo": 9,
+          "puntaje_maximo": 10,
+          "descripcion": "El estudiante participa activamente en el foro publicando sus tres ejercicios (K-Means, DBSCAN, Agglomerative Clustering) en formato PDF o JPG, presenta aportes relevantes y bien argumentados, realiza retroalimentación constructiva, respetuosa y específica al trabajo de un compañero sobre alguno de los ejercicios desarrollados, demostrando análisis profundo y comprensión del tema, y adjunta screenshot del feedback realizado."
+        },
+        {
+          "nivel": "medio",
+          "puntaje_minimo": 7,
+          "puntaje_maximo": 8,
+          "descripcion": "El estudiante participa en el foro publicando sus ejercicios, pero sus aportes son breves, poco argumentados o generales. La retroalimentación a su compañero es correcta pero limitada, poco detallada o muy general. Adjunta screenshot del feedback."
+        },
+        {
+          "nivel": "bajo",
+          "puntaje_minimo": 1,
+          "puntaje_maximo": 6,
+          "descripcion": "El estudiante participa mínimamente en el foro, publicando solo algunos ejercicios o de forma incompleta, sin aportar ideas relevantes. La retroalimentación es superficial, incorrecta o no demuestra comprensión del tema. Puede no adjuntar screenshot o este es incompleto."
+        },
+        {
+          "nivel": "no_presentado",
+          "puntaje_minimo": 0,
+          "puntaje_maximo": 0,
+          "descripcion": "El estudiante no participa en el foro ni realiza retroalimentación a ningún compañero."
+        }
+      ]
+    },
+    {
+      "numero": 5,
+      "nombre": "Entrega documento según indicaciones en la Guía",
+      "puntaje_maximo": 10,
+      "descripcion_general": "Evalúa el cumplimiento de los requisitos de entrega: archivo .ipynb con nombre correcto (G#_nombre_apellido_Fase3.ipynb), subido en la plantilla indicada, dentro del plazo establecido, y cumpliendo con formato y estructura",
+      "niveles": [
+        {
+          "nivel": "alto",
+          "puntaje_minimo": 9,
+          "puntaje_maximo": 10,
+          "descripcion": "El estudiante entrega el documento completo en formato .ipynb (Jupyter Notebook) dentro del plazo establecido, con el nombre correcto siguiendo el formato G#_(nombre_apellido)_Fase3.ipynb, lo sube en la plantilla indicada, incluye todos los ejercicios desarrollados (K-Means, DBSCAN y Agglomerative Clustering) de forma clara y organizada, y cumple con todos los requerimientos de forma, estructura y formato indicados en la guía."
+        },
+        {
+          "nivel": "medio",
+          "puntaje_minimo": 7,
+          "puntaje_maximo": 8,
+          "descripcion": "El documento es entregado dentro del plazo en formato .ipynb, pero presenta algunos errores menores como: nombre de archivo ligeramente incorrecto, faltantes respecto a la estructura solicitada, organización mejorable, o no incluye todos los ejercicios de forma completa. Cumple parcialmente con el formato solicitado en la guía."
+        },
+        {
+          "nivel": "bajo",
+          "puntaje_minimo": 1,
+          "puntaje_maximo": 6,
+          "descripcion": "El documento se entrega con incumplimiento notable de las indicaciones: formato incorrecto (no es .ipynb), nombre de archivo incompleto o erróneo, estructura inadecuada que dificulta su revisión, faltan ejercicios completos, o no se sube en la plantilla indicada."
+        },
+        {
+          "nivel": "no_presentado",
+          "puntaje_minimo": 0,
+          "puntaje_maximo": 0,
+          "descripcion": "El estudiante no entrega el documento o lo entrega en blanco, o fuera del plazo sin justificación."
+        }
+      ]
+    }
+  ],
+  "notas_importantes": [
+    "La calificación es flexible y no estricta, valorando el esfuerzo y comprensión del estudiante",
+    "Se recomienda dar retroalimentación constructiva en cada criterio",
+    "Los ejercicios deben publicarse en el foro en formato PDF o JPG",
+    "El archivo final .ipynb debe nombrarse correctamente: G#_(nombre_apellido)_Fase3.ipynb",
+    "Se debe incluir screenshot del feedback realizado a un compañero",
+    "Los tres algoritmos (K-Means, DBSCAN, Agglomerative) son obligatorios"
+  ]
+}
